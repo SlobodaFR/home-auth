@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .spinner-container {
+            position: relative;
+            width: 48px;
+            height: 48px;
+        }
+
+        .spinner-track {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 3px solid #e5e7eb; /* hairline color equivalent */
+        }
+
+        .spinner-active {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            border-top-color: #3525cd; /* primary indigo */
+            animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .shimmer-text {
+            background: linear-gradient(90deg, #111111 0%, #6b7280 50%, #111111 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 2.5s linear infinite;
+        }
+
+        @keyframes shimmer {
+            to { background-position: 200% center; }
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#e4e1ee",
+                        "primary": "#3525cd",
+                        "on-tertiary-container": "#ffd2be",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "surface-container-highest": "#e4e1ee",
+                        "background": "#fcf8ff",
+                        "surface-bright": "#fcf8ff",
+                        "surface-container-low": "#f5f2ff",
+                        "secondary-container": "#6cf8bb",
+                        "on-secondary-fixed": "#002113",
+                        "hairline": "#e5e7eb",
+                        "surface-dim": "#dcd8e5",
+                        "surface-container": "#f0ecf9",
+                        "on-tertiary-fixed": "#351000",
+                        "error": "#ef4444",
+                        "on-error": "#ffffff",
+                        "inverse-primary": "#c3c0ff",
+                        "outline": "#777587",
+                        "surface-tint": "#4d44e3",
+                        "primary-container": "#4f46e5",
+                        "surface-container-high": "#eae6f4",
+                        "on-secondary-fixed-variant": "#005236",
+                        "primary-fixed-dim": "#c3c0ff",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "secondary": "#006c49",
+                        "error-container": "#ffdad6",
+                        "charcoal": "#374151",
+                        "on-tertiary": "#ffffff",
+                        "surface": "#fcf8ff",
+                        "on-secondary": "#ffffff",
+                        "canvas": "#ffffff",
+                        "primary-fixed": "#e2dfff",
+                        "tertiary-fixed": "#ffdbcc",
+                        "soft-cloud": "#f9fafb",
+                        "inverse-surface": "#302f39",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed": "#6ffbbe",
+                        "mute": "#6b7280",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "on-surface": "#1b1b24",
+                        "on-primary-fixed": "#0f0069",
+                        "ink": "#111111",
+                        "secondary-fixed-dim": "#4edea3",
+                        "tertiary": "#7e3000",
+                        "on-primary-container": "#dad7ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-container": "#00714d",
+                        "on-background": "#1b1b24",
+                        "on-surface-variant": "#464555",
+                        "tertiary-container": "#a44100",
+                        "inverse-on-surface": "#f3effc",
+                        "outline-variant": "#c7c4d8",
+                        "on-primary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "margin-mobile": "16px",
+                        "xxl": "48px",
+                        "margin-desktop": "32px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "button-md": ["Inter"],
+                        "display-mobile": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "display": ["Inter"],
+                        "body-strong": ["Inter"],
+                        "heading-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "heading-lg": ["Inter"],
+                        "heading-xl": ["Inter"],
+                        "caption": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-xl": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["18px", {"lineHeight": "1.5", "fontWeight": "600"}],
+                        "button-md": ["15px", {"lineHeight": "1", "fontWeight": "600"}],
+                        "display-mobile": ["36px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-sm": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "display": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-strong": ["16px", {"lineHeight": "1.5", "fontWeight": "500"}],
+                        "heading-md": ["18px", {"lineHeight": "1.5", "fontWeight": "600"}],
+                        "headline-lg": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "heading-lg": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "heading-xl": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "caption": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-xl": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-canvas text-ink antialiased">
+<!-- Transition Canvas -->
+<main class="flex flex-col items-center justify-center min-h-screen p-margin-desktop overflow-hidden">
+<!-- Center Transition Content -->
+<div class="flex flex-col items-center gap-lg max-w-sm w-full fade-in">
+<!-- Logo / Brand Anchor (Auth Service) -->
+<div class="mb-xl">
+<span class="text-headline-lg font-headline-lg font-black text-primary tracking-tighter">
+                    Auth Service
+                </span>
+</div>
+<!-- Loader Wrapper -->
+<div class="relative flex items-center justify-center">
+<!-- Background Atmospheric Glow -->
+<div class="absolute w-24 h-24 bg-primary/10 rounded-full blur-2xl"></div>
+<!-- Spinner -->
+<div class="spinner-container">
+<div class="spinner-track border-hairline"></div>
+<div class="spinner-active border-t-primary"></div>
+</div>
+</div>
+<!-- Status Text -->
+<div class="text-center mt-md">
+<h1 class="font-headline-md text-headline-md text-ink shimmer-text tracking-tight">
+                    Signing you in...
+                </h1>
+<p class="font-body-md text-body-md text-mute mt-xs px-xl">
+                    Verifying your credentials and securing your session.
+                </p>
+</div>
+</div>
+<!-- Minimal Footer Ornament -->
+<div class="absolute bottom-xl w-full flex justify-center opacity-40">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">lock</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-mute">Enterprise Secure Link</span>
+</div>
+</div>
+</main>
+<!-- Micro-interaction for simulated completion -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Optional: Simulate a progress state or redirect logic
+            console.log('Transition screen initialized...');
+            
+            // Interaction: Pulse the text slightly every 2 seconds
+            const statusText = document.querySelector('.shimmer-text');
+            setInterval(() => {
+                statusText.classList.add('scale-[1.02]');
+                setTimeout(() => {
+                    statusText.classList.remove('scale-[1.02]');
+                }, 1000);
+            }, 2000);
+        });
+    </script>
+</body></html>

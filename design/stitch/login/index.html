@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login | Auth Service</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#e4e1ee",
+                        "primary": "#3525cd",
+                        "on-tertiary-container": "#ffd2be",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "surface-container-highest": "#e4e1ee",
+                        "background": "#fcf8ff",
+                        "surface-bright": "#fcf8ff",
+                        "surface-container-low": "#f5f2ff",
+                        "secondary-container": "#6cf8bb",
+                        "on-secondary-fixed": "#002113",
+                        "hairline": "#e5e7eb",
+                        "surface-dim": "#dcd8e5",
+                        "surface-container": "#f0ecf9",
+                        "on-tertiary-fixed": "#351000",
+                        "error": "#ef4444",
+                        "on-error": "#ffffff",
+                        "inverse-primary": "#c3c0ff",
+                        "outline": "#777587",
+                        "surface-tint": "#4d44e3",
+                        "primary-container": "#4f46e5",
+                        "surface-container-high": "#eae6f4",
+                        "on-secondary-fixed-variant": "#005236",
+                        "primary-fixed-dim": "#c3c0ff",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "secondary": "#006c49",
+                        "error-container": "#ffdad6",
+                        "charcoal": "#374151",
+                        "on-tertiary": "#ffffff",
+                        "surface": "#fcf8ff",
+                        "on-secondary": "#ffffff",
+                        "canvas": "#ffffff",
+                        "primary-fixed": "#e2dfff",
+                        "tertiary-fixed": "#ffdbcc",
+                        "soft-cloud": "#f9fafb",
+                        "inverse-surface": "#302f39",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed": "#6ffbbe",
+                        "mute": "#6b7280",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "on-surface": "#1b1b24",
+                        "on-primary-fixed": "#0f0069",
+                        "ink": "#111111",
+                        "secondary-fixed-dim": "#4edea3",
+                        "tertiary": "#7e3000",
+                        "on-primary-container": "#dad7ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-container": "#00714d",
+                        "on-background": "#1b1b24",
+                        "on-surface-variant": "#464555",
+                        "tertiary-container": "#a44100",
+                        "inverse-on-surface": "#f3effc",
+                        "outline-variant": "#c7c4d8",
+                        "on-primary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "margin-mobile": "16px",
+                        "xxl": "48px",
+                        "margin-desktop": "32px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "button-md": ["Inter"],
+                        "display-mobile": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "display": ["Inter"],
+                        "body-strong": ["Inter"],
+                        "heading-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "heading-lg": ["Inter"],
+                        "heading-xl": ["Inter"],
+                        "caption": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-xl": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["18px", {"lineHeight": "1.5", "fontWeight": "600"}],
+                        "button-md": ["15px", {"lineHeight": "1", "fontWeight": "600"}],
+                        "display-mobile": ["36px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-sm": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "display": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-strong": ["16px", {"lineHeight": "1.5", "fontWeight": "500"}],
+                        "heading-md": ["18px", {"lineHeight": "1.5", "fontWeight": "600"}],
+                        "headline-lg": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "heading-lg": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "heading-xl": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "caption": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-xl": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .shadow-soft {
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .animate-subtle-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+    </style>
+</head>
+<body class="bg-soft-cloud min-h-screen flex items-center justify-center p-margin-mobile md:p-margin-desktop">
+<!-- Auth Service Shell Suppressed as per "Linear/Transactional" rule in instructions -->
+<main class="w-full max-w-[440px] animate-subtle-float">
+<div class="bg-canvas border border-hairline rounded-xl p-xl shadow-soft">
+<!-- Brand Identity -->
+<div class="flex flex-col items-center mb-xxl text-center">
+<div class="w-16 h-16 bg-primary-fixed text-primary rounded-xl flex items-center justify-center mb-lg">
+<span class="material-symbols-outlined !text-[40px]" data-icon="shield">shield</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-ink tracking-tight">Auth Service</h1>
+<p class="font-body-md text-body-md text-mute mt-xs">Secure enterprise access portal</p>
+</div>
+<!-- Login Form -->
+<form class="space-y-lg" id="login-form">
+<div class="space-y-xs">
+<label class="font-label-sm text-label-sm text-charcoal block px-xs" for="email">Email address</label>
+<input class="w-full px-md py-sm bg-canvas border border-hairline rounded-lg text-ink font-body-md focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" id="email" placeholder="name@company.com" required="" type="email"/>
+</div>
+<button class="w-full bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-button-md text-button-md py-md px-lg rounded-lg transition-all duration-200 active:scale-[0.98] shadow-sm flex items-center justify-center gap-sm group" type="submit">
+<span>Send magic link</span>
+<span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</form>
+<!-- Helper Text -->
+<div class="mt-xl flex items-start gap-sm p-md bg-surface-container-low rounded-lg border border-hairline">
+<span class="material-symbols-outlined text-primary text-[20px] mt-[2px]" data-icon="info">info</span>
+<p class="font-caption text-caption text-charcoal">
+                    We will email you a secure link to sign in instantly. No passwords required for your protection.
+                </p>
+</div>
+</div>
+<!-- Footer Decoration / Privacy Links -->
+<div class="mt-xl flex flex-col items-center gap-md">
+<div class="flex gap-lg">
+<a class="font-label-sm text-label-sm text-mute hover:text-ink transition-colors" href="#">Privacy Policy</a>
+<a class="font-label-sm text-label-sm text-mute hover:text-ink transition-colors" href="#">Terms of Service</a>
+<a class="font-label-sm text-label-sm text-mute hover:text-ink transition-colors" href="#">Support</a>
+</div>
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px] text-mute" data-icon="lock" data-weight="fill" style="font-variation-settings: 'FILL' 1;">lock</span>
+<span class="font-label-sm text-label-sm text-mute uppercase tracking-widest opacity-60">End-to-End Encryption Enabled</span>
+</div>
+</div>
+</main>
+<!-- Micro-interactions Script -->
+<script>
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const emailInput = document.getElementById('email');
+            const button = e.target.querySelector('button');
+            const originalContent = button.innerHTML;
+            
+            // Visual feedback for interaction
+            button.disabled = true;
+            button.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Sending...</span>
+            `;
+
+            // Reset after simulated delay
+            setTimeout(() => {
+                button.classList.replace('bg-primary', 'bg-secondary');
+                button.innerHTML = `
+                    <span class="material-symbols-outlined" data-icon="check_circle">check_circle</span>
+                    <span>Link Sent!</span>
+                `;
+                emailInput.value = '';
+                
+                setTimeout(() => {
+                    button.disabled = false;
+                    button.classList.replace('bg-secondary', 'bg-primary');
+                    button.innerHTML = originalContent;
+                }, 3000);
+            }, 1500);
+        });
+    </script>
+</body></html>
