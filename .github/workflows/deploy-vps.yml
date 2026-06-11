@@ -1,0 +1,96 @@
+name: Deploy to VPS
+
+on:
+  workflow_run:
+    workflows: [Build & Publish]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        id: tag
+        run: |
+          echo "value=sha-$(echo '${{ github.event.workflow_run.head_sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Load secrets from 1Password
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          VPS_HOST: op://TECH/thomassloboda_home_secrets/VPS_HOST
+          VPS_USER: op://TECH/thomassloboda_home_secrets/VPS_USER
+          VPS_SSH_KEY: op://TECH/thomassloboda_home_secrets/VPS_PRIVATE_KEY
+          ADMIN_EMAIL: op://TECH/thomassloboda_home_secrets/AUTH_ADMIN_EMAIL
+          AUTH_BASE_URL: op://TECH/thomassloboda_home_secrets/AUTH_BASE_URL
+          FRONTEND_URL: op://TECH/thomassloboda_home_secrets/AUTH_FRONTEND_URL
+          RESEND_API_KEY: op://TECH/thomassloboda_home_secrets/AUTH_RESEND_API_KEY
+          EMAIL_FROM: op://TECH/thomassloboda_home_secrets/AUTH_EMAIL_FROM
+          DATABASE_PATH: op://TECH/thomassloboda_home_secrets/AUTH_DATABASE_PATH
+          MINIO_ENDPOINT: op://TECH/thomassloboda_home_secrets/MINIO_ENDPOINT
+          MINIO_BUCKET: op://TECH/thomassloboda_home_secrets/MINIO_BUCKET
+          MINIO_REPLICA_PATH: op://TECH/thomassloboda_home_secrets/AUTH_MINIO_REPLICA_PATH
+          AVATARS_PREFIX: op://TECH/thomassloboda_home_secrets/AUTH_AVATARS_PREFIX
+          MINIO_REGION: op://TECH/thomassloboda_home_secrets/MINIO_REGION
+          MINIO_ACCESS_KEY_ID: op://TECH/thomassloboda_home_secrets/MINIO_ACCESS_KEY_ID
+          MINIO_SECRET_ACCESS_KEY: op://TECH/thomassloboda_home_secrets/MINIO_SECRET_ACCESS_KEY
+
+      - name: Write remote .env
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ env.VPS_SSH_KEY }}
+          envs: ADMIN_EMAIL,AUTH_BASE_URL,FRONTEND_URL,RESEND_API_KEY,EMAIL_FROM,DATABASE_PATH,MINIO_ENDPOINT,MINIO_BUCKET,MINIO_REPLICA_PATH,AVATARS_PREFIX,MINIO_REGION,MINIO_ACCESS_KEY_ID,MINIO_SECRET_ACCESS_KEY
+          script: |
+            mkdir -p /opt/auth-service/deploy
+            cat > /opt/auth-service/deploy/.env <<EOF
+            NODE_ENV=production
+            PORT=3000
+            ADMIN_EMAIL=$ADMIN_EMAIL
+            AUTH_BASE_URL=$AUTH_BASE_URL
+            FRONTEND_URL=$FRONTEND_URL
+            RESEND_API_KEY=$RESEND_API_KEY
+            EMAIL_FROM=$EMAIL_FROM
+            DATABASE_PATH=$DATABASE_PATH
+            MINIO_ENDPOINT=$MINIO_ENDPOINT
+            MINIO_BUCKET=$MINIO_BUCKET
+            MINIO_REPLICA_PATH=$MINIO_REPLICA_PATH
+            AVATARS_PREFIX=$AVATARS_PREFIX
+            MINIO_REGION=$MINIO_REGION
+            MINIO_ACCESS_KEY_ID=$MINIO_ACCESS_KEY_ID
+            MINIO_SECRET_ACCESS_KEY=$MINIO_SECRET_ACCESS_KEY
+            EOF
+
+      - name: Sync deploy files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ env.VPS_SSH_KEY }}
+          source: 'deploy/docker-compose.yml,deploy/scripts/update-vps.sh'
+          target: /opt/auth-service
+          strip_components: 0
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ env.VPS_SSH_KEY }}
+          envs: IMAGE,IMAGE_TAG,DEPLOY_DIR
+          script: |
+            chmod +x /opt/auth-service/deploy/scripts/update-vps.sh
+            sh /opt/auth-service/deploy/scripts/update-vps.sh
+        env:
+          IMAGE: ${{ steps.tag.outputs.image }}
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+          DEPLOY_DIR: /opt/auth-service
