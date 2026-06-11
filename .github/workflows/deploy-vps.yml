@@ -44,16 +44,16 @@ jobs:
           MINIO_SECRET_ACCESS_KEY: op://TECH/thomassloboda_home_secrets/MINIO_SECRET_ACCESS_KEY
 
       - name: Normalize VPS_SSH_KEY
-        # The 1Password field stores the key as a single line with newlines
-        # collapsed to spaces. Split the BEGIN/END markers onto their own
-        # lines first, then turn the remaining spaces (base64 line breaks)
-        # back into newlines.
+        # The 1Password field stores only the base64 body (no BEGIN/END
+        # markers, possibly with stray spaces from line-wrap collapsing).
+        # Strip spaces (base64 never contains any) and wrap with markers.
         run: |
           {
             echo "VPS_SSH_KEY<<EOF_SSH_KEY"
-            printf '%s\n' "$VPS_SSH_KEY" \
-              | sed 's/-----BEGIN OPENSSH PRIVATE KEY----- /-----BEGIN OPENSSH PRIVATE KEY-----\n/; s/ -----END OPENSSH PRIVATE KEY-----/\n-----END OPENSSH PRIVATE KEY-----/' \
-              | tr ' ' '\n'
+            echo "-----BEGIN OPENSSH PRIVATE KEY-----"
+            printf '%s' "$VPS_SSH_KEY" | tr -d ' '
+            echo
+            echo "-----END OPENSSH PRIVATE KEY-----"
             echo "EOF_SSH_KEY"
           } >> "$GITHUB_ENV"
 
