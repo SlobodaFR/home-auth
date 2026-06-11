@@ -57,17 +57,17 @@ jobs:
             echo "EOF_SSH_KEY"
           } >> "$GITHUB_ENV"
 
-      - name: Debug SSH key fingerprint
-        run: |
-          echo "$VPS_SSH_KEY" > /tmp/key
-          chmod 600 /tmp/key
-          ssh-keygen -y -f /tmp/key > /tmp/key.pub || echo "FAILED to derive pubkey"
-          echo "Fingerprint:"
-          ssh-keygen -lf /tmp/key.pub || true
-          echo "Public key:"
-          cat /tmp/key.pub || true
-          echo "VPS_USER=$VPS_USER"
-          echo "VPS_HOST=$VPS_HOST"
+          {
+            printf '%s' "$VPS_SSH_KEY" | tr -d ' '
+          } > /tmp/key_body
+          {
+            echo "-----BEGIN OPENSSH PRIVATE KEY-----"
+            cat /tmp/key_body
+            echo
+            echo "-----END OPENSSH PRIVATE KEY-----"
+          } > /tmp/key
+          echo "::add-mask::$(cat /tmp/key_body)"
+          rm -f /tmp/key_body /tmp/key
 
       - name: Write remote .env
         uses: appleboy/ssh-action@v1
