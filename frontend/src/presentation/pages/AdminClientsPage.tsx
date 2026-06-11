@@ -8,6 +8,7 @@ export function AdminClientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [newSecret, setNewSecret] = useState<{ clientId: string; secret: string } | null>(null);
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
   const [id, setId] = useState('');
@@ -58,6 +59,17 @@ export function AdminClientsPage() {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleUpdate(clientId: string, redirectUris: string[], logoutWebhookUrl: string | null) {
+    setError(null);
+    try {
+      await apiClient.updateClient(clientId, { redirectUris, logoutWebhookUrl });
+      setEditingClientId(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur inconnue');
     }
   }
 
@@ -225,7 +237,21 @@ export function AdminClientsPage() {
                         <div className="flex items-center justify-end gap-sm">
                           <button
                             type="button"
-                            onClick={() => setExpandedClientId(expandedClientId === client.id ? null : client.id)}
+                            onClick={() => {
+                              setEditingClientId(editingClientId === client.id ? null : client.id);
+                              setExpandedClientId(null);
+                            }}
+                            className="p-xs text-mute hover:text-primary transition-colors"
+                            title="Modifier"
+                          >
+                            <span className="material-symbols-outlined">edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExpandedClientId(expandedClientId === client.id ? null : client.id);
+                              setEditingClientId(null);
+                            }}
                             className="p-xs text-mute hover:text-primary transition-colors"
                             title="Gerer les acces"
                           >
@@ -242,6 +268,17 @@ export function AdminClientsPage() {
                         </div>
                       </td>
                     </tr>
+                    {editingClientId === client.id && (
+                      <tr className="border-b border-hairline bg-surface-container-low">
+                        <td colSpan={4} className="px-lg py-lg">
+                          <ClientEditForm
+                            client={client}
+                            onSave={handleUpdate}
+                            onCancel={() => setEditingClientId(null)}
+                          />
+                        </td>
+                      </tr>
+                    )}
                     {expandedClientId === client.id && (
                       <tr className="border-b border-hairline bg-surface-container-low">
                         <td colSpan={4} className="px-lg py-lg">
@@ -257,6 +294,77 @@ export function AdminClientsPage() {
         )}
       </div>
     </main>
+  );
+}
+
+function ClientEditForm({
+  client,
+  onSave,
+  onCancel,
+}: {
+  client: AdminClient;
+  onSave: (clientId: string, redirectUris: string[], logoutWebhookUrl: string | null) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [redirectUris, setRedirectUris] = useState(client.redirectUris.join('\n'));
+  const [logoutWebhookUrl, setLogoutWebhookUrl] = useState(client.logoutWebhookUrl ?? '');
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await onSave(
+        client.id,
+        redirectUris
+          .split('\n')
+          .map((uri) => uri.trim())
+          .filter(Boolean),
+        logoutWebhookUrl.trim() || null,
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-md">
+      <label className="space-y-xs block">
+        <span className="font-label-sm text-label-sm text-charcoal block px-xs">Redirect URIs (une par ligne)</span>
+        <textarea
+          value={redirectUris}
+          onChange={(event) => setRedirectUris(event.target.value)}
+          rows={3}
+          className="w-full px-md py-sm bg-canvas border border-hairline rounded-lg text-ink font-body-md focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+          required
+        />
+      </label>
+      <label className="space-y-xs block">
+        <span className="font-label-sm text-label-sm text-charcoal block px-xs">Webhook de deconnexion (optionnel)</span>
+        <input
+          type="text"
+          value={logoutWebhookUrl}
+          onChange={(event) => setLogoutWebhookUrl(event.target.value)}
+          className="w-full px-md py-sm bg-canvas border border-hairline rounded-lg text-ink font-body-md focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+        />
+      </label>
+      <div className="flex gap-md">
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex-1 px-lg py-sm bg-primary text-white rounded-lg font-button-md text-button-md hover:bg-primary-container transition-all disabled:opacity-50"
+        >
+          {saving ? 'Enregistrement...' : 'Enregistrer'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 px-lg py-sm border border-hairline rounded-lg font-button-md text-button-md text-charcoal hover:bg-soft-cloud transition-all"
+        >
+          Annuler
+        </button>
+      </div>
+    </form>
   );
 }
 
