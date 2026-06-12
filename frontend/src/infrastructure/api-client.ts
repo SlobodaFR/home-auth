@@ -58,8 +58,8 @@ function sendJson<T>(path: string, method: string, body: unknown): Promise<T> {
 }
 
 export const apiClient = {
-  async requestMagicLink(email: string): Promise<void> {
-    await sendJson('/auth/request-link', 'POST', { email });
+  async requestMagicLink(email: string, redirect?: string): Promise<void> {
+    await sendJson('/auth/request-link', 'POST', { email, redirect });
   },
 
   async verifyMagicLink(token: string): Promise<{ userId: string }> {

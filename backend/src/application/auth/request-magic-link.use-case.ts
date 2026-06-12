@@ -20,7 +20,7 @@ export class RequestMagicLinkUseCase {
     private readonly config: ConfigService,
   ) {}
 
-  async execute(rawEmail: string): Promise<void> {
+  async execute(rawEmail: string, redirect?: string): Promise<void> {
     const email = rawEmail.trim().toLowerCase();
 
     let user = await this.userRepository.findByEmail(email);
@@ -41,7 +41,10 @@ export class RequestMagicLinkUseCase {
     await this.magicLinkTokenRepository.save(magicLinkToken);
 
     const authBaseUrl = this.config.get<string>('AUTH_BASE_URL', 'http://localhost:3000');
-    const link = `${authBaseUrl.replace(/\/$/, '')}/auth/callback?token=${rawToken}`;
+    let link = `${authBaseUrl.replace(/\/$/, '')}/auth/callback?token=${rawToken}`;
+    if (redirect?.startsWith('/authorize?')) {
+      link += `&redirect=${encodeURIComponent(redirect)}`;
+    }
 
     await this.emailSender.send({
       to: user.email,

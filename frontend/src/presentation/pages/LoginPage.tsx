@@ -1,7 +1,10 @@
 import { FormEvent, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../infrastructure/api-client';
 
 export function LoginPage() {
+  const [searchParams] = useSearchParams();
+  const redirect = searchParams.get('redirect') ?? undefined;
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -17,7 +20,7 @@ export function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await apiClient.requestMagicLink(email.trim());
+      await apiClient.requestMagicLink(email.trim(), redirect);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
