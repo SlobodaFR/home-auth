@@ -29,7 +29,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Send a magic-link sign-in email' })
   @ApiResponse({ status: 204, description: 'Email sent (if the address is known)' })
   async requestLink(@Body() dto: RequestMagicLinkDto): Promise<void> {
-    await this.requestMagicLink.execute(dto.email);
+    await this.requestMagicLink.execute(dto.email, dto.redirect);
   }
 
   @Post('callback')

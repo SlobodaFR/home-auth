@@ -10,17 +10,19 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthorizeUseCase } from '../../../application/auth/authorize.use-case';
 import { ExchangeCodeUseCase, TokenPair } from '../../../application/auth/exchange-code.use-case';
 import { RefreshTokenUseCase } from '../../../application/auth/refresh-token.use-case';
 import { GetUserInfoUseCase, UserInfo } from '../../../application/profile/get-user-info.use-case';
-import { CurrentUser } from '../decorators/current-user.decorator';
+import { SessionService } from '../../../domain/auth/session.service';
+import { UserRepository } from '../../../domain/user/user.repository';
 import { AuthorizeQueryDto } from '../dto/authorize-query.dto';
 import { TokenRequestDto } from '../dto/token-request.dto';
 import { AccessTokenGuard, AccessTokenRequest } from '../guards/access-token.guard';
-import { SessionAuthGuard, SessionUser } from '../guards/session-auth.guard';
+import { SESSION_COOKIE_NAME } from '../guards/session-auth.guard';
 import { TokenPairDto } from '../presenters/token-pair.dto';
 import { UserInfoDto } from '../presenters/user-info.dto';
 
@@ -32,20 +34,31 @@ export class OAuthController {
     private readonly exchangeCodeUseCase: ExchangeCodeUseCase,
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
     private readonly getUserInfo: GetUserInfoUseCase,
+    private readonly sessionService: SessionService,
+    private readonly userRepository: UserRepository,
+    private readonly config: ConfigService,
   ) {}
 
   @Get('authorize')
-  @UseGuards(SessionAuthGuard)
   @ApiCookieAuth('auth_session')
-  @ApiOperation({ summary: 'Start the OAuth2 Authorization Code flow', description: 'Redirects to redirect_uri with an authorization code' })
-  @ApiResponse({ status: 302, description: 'Redirect to redirect_uri?code=...' })
-  async authorize(
-    @Query() query: AuthorizeQueryDto,
-    @CurrentUser() user: SessionUser,
-    @Res() res: Response,
-  ): Promise<void> {
+  @ApiOperation({
+    summary: 'Start the OAuth2 Authorization Code flow',
+    description:
+      'Redirects to redirect_uri with an authorization code. If the user has no active session, redirects to the login page first.',
+  })
+  @ApiResponse({ status: 302, description: 'Redirect to redirect_uri?code=... or to the login page' })
+  async authorize(@Query() query: AuthorizeQueryDto, @Req() req: Request, @Res() res: Response): Promise<void> {
+    const userId = await this.getSessionUserId(req);
+    if (!userId) {
+      const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
+      const loginUrl = new URL('/login', frontendUrl);
+      loginUrl.searchParams.set('redirect', req.originalUrl);
+      res.redirect(loginUrl.toString());
+      return;
+    }
+
     const code = await this.authorizeUseCase.execute({
-      userId: user.id,
+      userId,
       clientId: query.client_id,
       redirectUri: query.redirect_uri,
     });
@@ -53,6 +66,19 @@ export class OAuthController {
     const redirectUrl = new URL(query.redirect_uri);
     redirectUrl.searchParams.set('code', code);
     res.redirect(redirectUrl.toString());
+  }
+
+  private async getSessionUserId(req: Request): Promise<string | null> {
+    const token = (req.cookies as Record<string, string | undefined>)[SESSION_COOKIE_NAME];
+    if (!token) {
+      return null;
+    }
+    const userId = await this.sessionService.verify(token);
+    if (!userId) {
+      return null;
+    }
+    const user = await this.userRepository.findById(userId);
+    return user ? user.id : null;
   }
 
   @Post('token')

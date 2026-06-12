@@ -9,6 +9,7 @@ export function AuthCallbackPage() {
   const [status, setStatus] = useState<'pending' | 'success' | 'error'>('pending');
 
   const token = searchParams.get('token');
+  const redirect = searchParams.get('redirect');
 
   useEffect(() => {
     if (!token) {
@@ -24,6 +25,10 @@ export function AuthCallbackPage() {
   }, [token, refresh]);
 
   if (status === 'success') {
+    if (redirect?.startsWith('/authorize?')) {
+      window.location.href = redirect;
+      return null;
+    }
     return <Navigate to="/" replace />;
   }
 
