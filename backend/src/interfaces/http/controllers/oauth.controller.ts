@@ -2,7 +2,9 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
+  NotFoundException,
   Post,
   Query,
   Req,
@@ -57,11 +59,28 @@ export class OAuthController {
       return;
     }
 
-    const code = await this.authorizeUseCase.execute({
-      userId,
-      clientId: query.client_id,
-      redirectUri: query.redirect_uri,
-    });
+    let code: string;
+    try {
+      code = await this.authorizeUseCase.execute({
+        userId,
+        clientId: query.client_id,
+        redirectUri: query.redirect_uri,
+      });
+    } catch (error) {
+      const reason =
+        error instanceof ForbiddenException
+          ? 'forbidden'
+          : error instanceof NotFoundException
+            ? 'unknown_client'
+            : 'invalid_request';
+
+      const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
+      const errorUrl = new URL('/error', frontendUrl);
+      errorUrl.searchParams.set('reason', reason);
+      errorUrl.searchParams.set('client', query.client_id);
+      res.redirect(errorUrl.toString());
+      return;
+    }
 
     const redirectUrl = new URL(query.redirect_uri);
     redirectUrl.searchParams.set('code', code);
