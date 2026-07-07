@@ -12,6 +12,12 @@ export class UserInfoDto {
 
   @ApiProperty()
   avatarUrl!: string;
+
+  @ApiProperty({ nullable: true })
+  countryCode!: string | null;
+
+  @ApiProperty({ nullable: true })
+  locale!: string | null;
 }
 
 export class ProfileDto extends UserInfoDto {

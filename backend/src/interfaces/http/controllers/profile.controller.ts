@@ -41,10 +41,10 @@ export class ProfileController {
 
   @Patch()
   @HttpCode(204)
-  @ApiOperation({ summary: 'Update the current user display name' })
+  @ApiOperation({ summary: 'Update the current user profile' })
   @ApiResponse({ status: 204, description: 'Profile updated' })
   async update(@CurrentUser() user: SessionUser, @Body() dto: UpdateProfileDto): Promise<void> {
-    await this.updateProfile.execute(user.id, dto.name);
+    await this.updateProfile.execute(user.id, dto);
   }
 
   @Post('avatar')
