@@ -4,17 +4,26 @@ export interface UserProps {
   name: string;
   avatarKey: string | null;
   isAdmin: boolean;
+  countryCode?: string | null;
+  locale?: string | null;
   createdAt: Date;
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
+const LOCALE_PATTERN = /^[a-z]{2,3}(-[A-Z]{2})?$/;
 
 /**
  * User is the aggregate root for identity. Shared across all client
  * applications via the OAuth2 Authorization Code flow.
  */
+type ResolvedUserProps = Omit<UserProps, 'countryCode' | 'locale'> & {
+  countryCode: string | null;
+  locale: string | null;
+};
+
 export class User {
-  private readonly props: UserProps;
+  private readonly props: ResolvedUserProps;
 
   private constructor(props: UserProps) {
     const email = props.email.trim().toLowerCase();
@@ -25,7 +34,15 @@ export class User {
     if (!name) {
       throw new Error('Name must not be empty');
     }
-    this.props = { ...props, email, name };
+    const countryCode = props.countryCode ?? null;
+    if (countryCode !== null && !COUNTRY_CODE_PATTERN.test(countryCode)) {
+      throw new Error('Invalid country code');
+    }
+    const locale = props.locale ?? null;
+    if (locale !== null && !LOCALE_PATTERN.test(locale)) {
+      throw new Error('Invalid locale');
+    }
+    this.props = { ...props, email, name, countryCode, locale };
   }
 
   static create(props: UserProps): User {
@@ -52,6 +69,14 @@ export class User {
     return this.props.isAdmin;
   }
 
+  get countryCode(): string | null {
+    return this.props.countryCode;
+  }
+
+  get locale(): string | null {
+    return this.props.locale;
+  }
+
   get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -66,5 +91,13 @@ export class User {
 
   withAdmin(isAdmin: boolean): User {
     return new User({ ...this.props, isAdmin });
+  }
+
+  withCountryCode(countryCode: string | null): User {
+    return new User({ ...this.props, countryCode });
+  }
+
+  withLocale(locale: string | null): User {
+    return new User({ ...this.props, locale });
   }
 }
