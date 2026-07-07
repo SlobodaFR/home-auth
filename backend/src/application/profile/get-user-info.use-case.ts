@@ -7,6 +7,8 @@ export interface UserInfo {
   email: string;
   name: string;
   avatarUrl: string;
+  countryCode: string | null;
+  locale: string | null;
 }
 
 @Injectable()
@@ -29,6 +31,8 @@ export class GetUserInfoUseCase {
       email: user.email,
       name: user.name,
       avatarUrl: `${authBaseUrl}/avatars/${user.id}`,
+      countryCode: user.countryCode,
+      locale: user.locale,
     };
   }
 }

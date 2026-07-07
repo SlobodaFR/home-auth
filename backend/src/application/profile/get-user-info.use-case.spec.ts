@@ -27,6 +27,8 @@ describe('GetUserInfoUseCase', () => {
       email: 'alice@example.com',
       name: 'Alice',
       avatarUrl: 'https://auth.example.com/avatars/user-1',
+      countryCode: null,
+      locale: null,
     });
   });
 
