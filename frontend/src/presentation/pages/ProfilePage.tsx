@@ -2,9 +2,40 @@ import { ChangeEvent, FormEvent, useState } from 'react';
 import { apiClient } from '../../infrastructure/api-client';
 import { useAuth } from '../auth/AuthProvider';
 
+const COUNTRIES: { code: string; label: string; flag: string }[] = [
+  { code: 'FR', label: 'France', flag: '🇫🇷' },
+  { code: 'BE', label: 'Belgique', flag: '🇧🇪' },
+  { code: 'CH', label: 'Suisse', flag: '🇨🇭' },
+  { code: 'CA', label: 'Canada', flag: '🇨🇦' },
+  { code: 'US', label: 'États-Unis', flag: '🇺🇸' },
+  { code: 'GB', label: 'Royaume-Uni', flag: '🇬🇧' },
+  { code: 'DE', label: 'Allemagne', flag: '🇩🇪' },
+  { code: 'ES', label: 'Espagne', flag: '🇪🇸' },
+  { code: 'IT', label: 'Italie', flag: '🇮🇹' },
+  { code: 'PT', label: 'Portugal', flag: '🇵🇹' },
+  { code: 'NL', label: 'Pays-Bas', flag: '🇳🇱' },
+  { code: 'LU', label: 'Luxembourg', flag: '🇱🇺' },
+];
+
+const LOCALES: { code: string; label: string; flag: string }[] = [
+  { code: 'fr-FR', label: 'Français (France)', flag: '🇫🇷' },
+  { code: 'fr-BE', label: 'Français (Belgique)', flag: '🇧🇪' },
+  { code: 'fr-CH', label: 'Français (Suisse)', flag: '🇨🇭' },
+  { code: 'fr-CA', label: 'Français (Canada)', flag: '🇨🇦' },
+  { code: 'en-US', label: 'English (US)', flag: '🇺🇸' },
+  { code: 'en-GB', label: 'English (UK)', flag: '🇬🇧' },
+  { code: 'de-DE', label: 'Deutsch', flag: '🇩🇪' },
+  { code: 'es-ES', label: 'Español', flag: '🇪🇸' },
+  { code: 'it-IT', label: 'Italiano', flag: '🇮🇹' },
+  { code: 'pt-PT', label: 'Português', flag: '🇵🇹' },
+  { code: 'nl-NL', label: 'Nederlands', flag: '🇳🇱' },
+];
+
 export function ProfilePage() {
   const { user, logout, refresh } = useAuth();
   const [name, setName] = useState(user?.name ?? '');
+  const [countryCode, setCountryCode] = useState<string>(user?.countryCode ?? '');
+  const [locale, setLocale] = useState<string>(user?.locale ?? '');
   const [savingName, setSavingName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +51,11 @@ export function ProfilePage() {
     setMessage(null);
     setSavingName(true);
     try {
-      await apiClient.updateProfile(name.trim());
+      await apiClient.updateProfile({
+        name: name.trim(),
+        countryCode: countryCode || null,
+        locale: locale || null,
+      });
       await refresh();
       setMessage('Profil mis a jour.');
     } catch (err) {
@@ -50,6 +85,9 @@ export function ProfilePage() {
       event.target.value = '';
     }
   }
+
+  const selectedCountry = COUNTRIES.find((c) => c.code === countryCode);
+  const selectedLocale = LOCALES.find((l) => l.code === locale);
 
   return (
     <main className="max-w-3xl mx-auto px-margin-mobile md:px-margin-desktop py-xxl">
@@ -111,6 +149,60 @@ export function ProfilePage() {
                 disabled
                 className="w-full px-md py-sm bg-soft-cloud border border-hairline rounded-lg text-mute font-body-md outline-none"
               />
+            </div>
+
+            <div className="border-t border-hairline pt-lg grid grid-cols-1 md:grid-cols-2 gap-lg">
+              <div className="space-y-xs">
+                <label className="font-label-sm text-label-sm text-charcoal block px-xs" htmlFor="country">
+                  Pays
+                </label>
+                <div className="relative">
+                  {selectedCountry && (
+                    <span className="absolute left-md top-1/2 -translate-y-1/2 text-lg pointer-events-none">
+                      {selectedCountry.flag}
+                    </span>
+                  )}
+                  <select
+                    id="country"
+                    value={countryCode}
+                    onChange={(event) => setCountryCode(event.target.value)}
+                    className={`w-full py-sm bg-canvas border border-hairline rounded-lg text-ink font-body-md focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none appearance-none ${selectedCountry ? 'pl-10 pr-md' : 'px-md'}`}
+                  >
+                    <option value="">— Non renseigne —</option>
+                    {COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.flag} {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-xs">
+                <label className="font-label-sm text-label-sm text-charcoal block px-xs" htmlFor="locale">
+                  Langue
+                </label>
+                <div className="relative">
+                  {selectedLocale && (
+                    <span className="absolute left-md top-1/2 -translate-y-1/2 text-lg pointer-events-none">
+                      {selectedLocale.flag}
+                    </span>
+                  )}
+                  <select
+                    id="locale"
+                    value={locale}
+                    onChange={(event) => setLocale(event.target.value)}
+                    className={`w-full py-sm bg-canvas border border-hairline rounded-lg text-ink font-body-md focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none appearance-none ${selectedLocale ? 'pl-10 pr-md' : 'px-md'}`}
+                  >
+                    <option value="">— Non renseigne —</option>
+                    {LOCALES.map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.flag} {l.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
 

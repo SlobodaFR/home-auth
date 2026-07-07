@@ -4,6 +4,8 @@ export interface CurrentUser {
   name: string;
   avatarUrl: string;
   isAdmin: boolean;
+  countryCode: string | null;
+  locale: string | null;
 }
 
 export interface AdminUser {
@@ -78,8 +80,8 @@ export const apiClient = {
     return response.json() as Promise<CurrentUser>;
   },
 
-  async updateProfile(name: string): Promise<void> {
-    await sendJson('/profile', 'PATCH', { name });
+  async updateProfile(payload: { name?: string; countryCode?: string | null; locale?: string | null }): Promise<void> {
+    await sendJson('/profile', 'PATCH', payload);
   },
 
   async uploadAvatar(file: File): Promise<void> {
