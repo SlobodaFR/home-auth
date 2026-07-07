@@ -36,6 +36,8 @@ export class TypeOrmUserRepository extends UserRepository {
       name: user.name,
       avatarKey: user.avatarKey,
       isAdmin: user.isAdmin,
+      countryCode: user.countryCode,
+      locale: user.locale,
       createdAt: user.createdAt,
     });
   }
@@ -52,6 +54,8 @@ function toDomain(row: UserOrmEntity): User {
     name: row.name,
     avatarKey: row.avatarKey,
     isAdmin: row.isAdmin,
+    countryCode: row.countryCode,
+    locale: row.locale,
     createdAt: row.createdAt,
   });
 }
