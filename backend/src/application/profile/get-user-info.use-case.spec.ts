@@ -1,5 +1,8 @@
 import { User } from '../../domain/user/user';
-import { FakeConfigService, InMemoryUserRepository } from '../test/in-memory-repositories';
+import {
+  FakeConfigService,
+  InMemoryUserRepository,
+} from '../test/in-memory-repositories';
 import { GetUserInfoUseCase } from './get-user-info.use-case';
 
 describe('GetUserInfoUseCase', () => {
@@ -11,13 +14,15 @@ describe('GetUserInfoUseCase', () => {
         email: 'alice@example.com',
         name: 'Alice',
         avatarKey: null,
-        isAdmin: false,
+        isAdmin: true,
         createdAt: new Date(),
       }),
     );
     const useCase = new GetUserInfoUseCase(
       userRepository,
-      new FakeConfigService({ AUTH_BASE_URL: 'https://auth.example.com' }) as never,
+      new FakeConfigService({
+        AUTH_BASE_URL: 'https://auth.example.com',
+      }) as never,
     );
 
     const result = await useCase.execute('user-1');
@@ -29,13 +34,19 @@ describe('GetUserInfoUseCase', () => {
       avatarUrl: 'https://auth.example.com/avatars/user-1',
       countryCode: null,
       locale: null,
+      isAdmin: true,
     });
   });
 
   it('rejects an unknown user', async () => {
     const userRepository = new InMemoryUserRepository();
-    const useCase = new GetUserInfoUseCase(userRepository, new FakeConfigService() as never);
+    const useCase = new GetUserInfoUseCase(
+      userRepository,
+      new FakeConfigService() as never,
+    );
 
-    await expect(useCase.execute('unknown')).rejects.toThrow('User unknown not found');
+    await expect(useCase.execute('unknown')).rejects.toThrow(
+      'User unknown not found',
+    );
   });
 });

@@ -15,8 +15,15 @@ export class JwksTokenService extends TokenService {
     super();
   }
 
-  async signAccessToken(payload: AccessTokenPayload, ttlSeconds: number = ACCESS_TOKEN_TTL): Promise<string> {
-    return new SignJWT({ email: payload.email, name: payload.name })
+  async signAccessToken(
+    payload: AccessTokenPayload,
+    ttlSeconds: number = ACCESS_TOKEN_TTL,
+  ): Promise<string> {
+    return new SignJWT({
+      email: payload.email,
+      name: payload.name,
+      isAdmin: payload.isAdmin,
+    })
       .setProtectedHeader({ alg: 'RS256', kid: this.keys.getKeyId() })
       .setSubject(payload.sub)
       .setAudience(payload.aud)
@@ -25,13 +32,21 @@ export class JwksTokenService extends TokenService {
       .sign(this.keys.getPrivateKey());
   }
 
-  async verifyAccessToken(token: string, audience?: string): Promise<AccessTokenClaims | null> {
+  async verifyAccessToken(
+    token: string,
+    audience?: string,
+  ): Promise<AccessTokenClaims | null> {
     try {
-      const { payload } = await jwtVerify(token, this.keys.getPublicKey(), audience ? { audience } : undefined);
+      const { payload } = await jwtVerify(
+        token,
+        this.keys.getPublicKey(),
+        audience ? { audience } : undefined,
+      );
       if (
         !payload.sub ||
         typeof payload.email !== 'string' ||
         typeof payload.name !== 'string' ||
+        typeof payload.isAdmin !== 'boolean' ||
         !payload.aud ||
         typeof payload.iat !== 'number' ||
         typeof payload.exp !== 'number'
@@ -42,6 +57,7 @@ export class JwksTokenService extends TokenService {
         sub: payload.sub,
         email: payload.email,
         name: payload.name,
+        isAdmin: payload.isAdmin,
         aud: Array.isArray(payload.aud) ? payload.aud[0] : payload.aud,
         iat: payload.iat,
         exp: payload.exp,
@@ -52,6 +68,8 @@ export class JwksTokenService extends TokenService {
   }
 
   getJwks(): Promise<JsonWebKeySet> {
-    return Promise.resolve({ keys: [this.keys.getPublicJwk() as unknown as Record<string, unknown>] });
+    return Promise.resolve({
+      keys: [this.keys.getPublicJwk() as unknown as Record<string, unknown>],
+    });
   }
 }

@@ -1,8 +1,15 @@
 import { randomBytes, randomUUID } from 'crypto';
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { RefreshToken } from '../../domain/auth/refresh-token';
 import { RefreshTokenRepository } from '../../domain/auth/refresh-token.repository';
-import { ACCESS_TOKEN_TTL, TokenService } from '../../domain/auth/token.service';
+import {
+  ACCESS_TOKEN_TTL,
+  TokenService,
+} from '../../domain/auth/token.service';
 import { ClientRepository } from '../../domain/client/client.repository';
 import { hashToken, verifySecret } from '../../domain/shared/hash';
 import { UserRepository } from '../../domain/user/user.repository';
@@ -29,7 +36,9 @@ export class RefreshTokenUseCase {
       throw new UnauthorizedException('Invalid client credentials');
     }
 
-    const existing = await this.refreshTokenRepository.findByTokenHash(hashToken(input.refreshToken));
+    const existing = await this.refreshTokenRepository.findByTokenHash(
+      hashToken(input.refreshToken),
+    );
     if (existing?.clientId !== input.clientId) {
       throw new UnauthorizedException('Invalid refresh token');
     }
@@ -61,9 +70,15 @@ export class RefreshTokenUseCase {
       sub: user.id,
       email: user.email,
       name: user.name,
+      isAdmin: user.isAdmin,
       aud: client.id,
     });
 
-    return { accessToken, refreshToken: rawRefreshToken, tokenType: 'Bearer', expiresIn: ACCESS_TOKEN_TTL };
+    return {
+      accessToken,
+      refreshToken: rawRefreshToken,
+      tokenType: 'Bearer',
+      expiresIn: ACCESS_TOKEN_TTL,
+    };
   }
 }

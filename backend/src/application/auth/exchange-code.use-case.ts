@@ -1,9 +1,16 @@
 import { randomBytes, randomUUID } from 'crypto';
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthorizationCodeRepository } from '../../domain/auth/authorization-code.repository';
 import { RefreshToken } from '../../domain/auth/refresh-token';
 import { RefreshTokenRepository } from '../../domain/auth/refresh-token.repository';
-import { ACCESS_TOKEN_TTL, TokenService } from '../../domain/auth/token.service';
+import {
+  ACCESS_TOKEN_TTL,
+  TokenService,
+} from '../../domain/auth/token.service';
 import { ClientRepository } from '../../domain/client/client.repository';
 import { hashToken, verifySecret } from '../../domain/shared/hash';
 import { UserRepository } from '../../domain/user/user.repository';
@@ -38,7 +45,10 @@ export class ExchangeCodeUseCase {
       throw new UnauthorizedException('Invalid client credentials');
     }
 
-    const authorizationCode = await this.authorizationCodeRepository.findByCodeHash(hashToken(input.code));
+    const authorizationCode =
+      await this.authorizationCodeRepository.findByCodeHash(
+        hashToken(input.code),
+      );
     if (
       authorizationCode?.clientId !== input.clientId ||
       authorizationCode.redirectUri !== input.redirectUri
@@ -50,7 +60,9 @@ export class ExchangeCodeUseCase {
     try {
       redeemed = authorizationCode.redeem();
     } catch (error) {
-      throw new UnauthorizedException(error instanceof Error ? error.message : 'Invalid authorization code');
+      throw new UnauthorizedException(
+        error instanceof Error ? error.message : 'Invalid authorization code',
+      );
     }
     await this.authorizationCodeRepository.save(redeemed);
 
@@ -63,6 +75,7 @@ export class ExchangeCodeUseCase {
       sub: user.id,
       email: user.email,
       name: user.name,
+      isAdmin: user.isAdmin,
       aud: client.id,
     });
 
@@ -77,6 +90,11 @@ export class ExchangeCodeUseCase {
       }),
     );
 
-    return { accessToken, refreshToken: rawRefreshToken, tokenType: 'Bearer', expiresIn: ACCESS_TOKEN_TTL };
+    return {
+      accessToken,
+      refreshToken: rawRefreshToken,
+      tokenType: 'Bearer',
+      expiresIn: ACCESS_TOKEN_TTL,
+    };
   }
 }

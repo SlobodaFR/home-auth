@@ -18,7 +18,8 @@ const RAW_CODE = 'raw-code';
 describe('ExchangeCodeUseCase', () => {
   function createUseCase() {
     const clientRepository = new InMemoryClientRepository();
-    const authorizationCodeRepository = new InMemoryAuthorizationCodeRepository();
+    const authorizationCodeRepository =
+      new InMemoryAuthorizationCodeRepository();
     const refreshTokenRepository = new InMemoryRefreshTokenRepository();
     const userRepository = new InMemoryUserRepository();
     const tokenService = new FakeTokenService();
@@ -29,7 +30,13 @@ describe('ExchangeCodeUseCase', () => {
       userRepository,
       tokenService,
     );
-    return { useCase, clientRepository, authorizationCodeRepository, refreshTokenRepository, userRepository };
+    return {
+      useCase,
+      clientRepository,
+      authorizationCodeRepository,
+      refreshTokenRepository,
+      userRepository,
+    };
   }
 
   async function seed(deps: ReturnType<typeof createUseCase>) {
@@ -76,11 +83,18 @@ describe('ExchangeCodeUseCase', () => {
 
     expect(result.tokenType).toBe('Bearer');
     expect(result.expiresIn).toBe(15 * 60);
-    const claims = JSON.parse(result.accessToken) as { sub: string; aud: string };
+    const claims = JSON.parse(result.accessToken) as {
+      sub: string;
+      aud: string;
+      isAdmin: boolean;
+    };
     expect(claims.sub).toBe('user-1');
     expect(claims.aud).toBe('budget');
+    expect(claims.isAdmin).toBe(false);
 
-    const stored = await deps.refreshTokenRepository.findByTokenHash(hashToken(result.refreshToken));
+    const stored = await deps.refreshTokenRepository.findByTokenHash(
+      hashToken(result.refreshToken),
+    );
     expect(stored?.userId).toBe('user-1');
   });
 
@@ -89,17 +103,32 @@ describe('ExchangeCodeUseCase', () => {
     await seed(deps);
 
     await expect(
-      deps.useCase.execute({ code: RAW_CODE, clientId: 'budget', clientSecret: 'wrong', redirectUri: REDIRECT_URI }),
+      deps.useCase.execute({
+        code: RAW_CODE,
+        clientId: 'budget',
+        clientSecret: 'wrong',
+        redirectUri: REDIRECT_URI,
+      }),
     ).rejects.toThrow('Invalid client credentials');
   });
 
   it('rejects a code already redeemed', async () => {
     const deps = createUseCase();
     await seed(deps);
-    await deps.useCase.execute({ code: RAW_CODE, clientId: 'budget', clientSecret: RAW_SECRET, redirectUri: REDIRECT_URI });
+    await deps.useCase.execute({
+      code: RAW_CODE,
+      clientId: 'budget',
+      clientSecret: RAW_SECRET,
+      redirectUri: REDIRECT_URI,
+    });
 
     await expect(
-      deps.useCase.execute({ code: RAW_CODE, clientId: 'budget', clientSecret: RAW_SECRET, redirectUri: REDIRECT_URI }),
+      deps.useCase.execute({
+        code: RAW_CODE,
+        clientId: 'budget',
+        clientSecret: RAW_SECRET,
+        redirectUri: REDIRECT_URI,
+      }),
     ).rejects.toThrow('Authorization code already used');
   });
 

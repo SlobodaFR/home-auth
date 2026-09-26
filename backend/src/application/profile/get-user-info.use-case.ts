@@ -9,6 +9,7 @@ export interface UserInfo {
   avatarUrl: string;
   countryCode: string | null;
   locale: string | null;
+  isAdmin: boolean;
 }
 
 @Injectable()
@@ -24,7 +25,9 @@ export class GetUserInfoUseCase {
       throw new NotFoundException(`User ${userId} not found`);
     }
 
-    const authBaseUrl = this.config.get<string>('AUTH_BASE_URL', 'http://localhost:3000').replace(/\/$/, '');
+    const authBaseUrl = this.config
+      .get<string>('AUTH_BASE_URL', 'http://localhost:3000')
+      .replace(/\/$/, '');
 
     return {
       id: user.id,
@@ -33,6 +36,7 @@ export class GetUserInfoUseCase {
       avatarUrl: `${authBaseUrl}/avatars/${user.id}`,
       countryCode: user.countryCode,
       locale: user.locale,
+      isAdmin: user.isAdmin,
     };
   }
 }

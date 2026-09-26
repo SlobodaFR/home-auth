@@ -18,9 +18,7 @@ export class UserInfoDto {
 
   @ApiProperty({ nullable: true })
   locale!: string | null;
-}
 
-export class ProfileDto extends UserInfoDto {
   @ApiProperty()
   isAdmin!: boolean;
 }

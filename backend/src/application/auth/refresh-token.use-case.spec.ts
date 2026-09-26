@@ -20,11 +20,24 @@ describe('RefreshTokenUseCase', () => {
     const refreshTokenRepository = new InMemoryRefreshTokenRepository();
     const userRepository = new InMemoryUserRepository();
     const tokenService = new FakeTokenService();
-    const useCase = new RefreshTokenUseCase(clientRepository, refreshTokenRepository, userRepository, tokenService);
-    return { useCase, clientRepository, refreshTokenRepository, userRepository };
+    const useCase = new RefreshTokenUseCase(
+      clientRepository,
+      refreshTokenRepository,
+      userRepository,
+      tokenService,
+    );
+    return {
+      useCase,
+      clientRepository,
+      refreshTokenRepository,
+      userRepository,
+    };
   }
 
-  async function seed(deps: ReturnType<typeof createUseCase>, expiresAt?: Date) {
+  async function seed(
+    deps: ReturnType<typeof createUseCase>,
+    expiresAt?: Date,
+  ) {
     await deps.clientRepository.save(
       Client.create({
         id: 'budget',
@@ -75,8 +88,18 @@ describe('RefreshTokenUseCase', () => {
     });
 
     expect(result.refreshToken).not.toBe(RAW_REFRESH_TOKEN);
-    expect(await deps.refreshTokenRepository.findByTokenHash(hashToken(RAW_REFRESH_TOKEN))).toBeNull();
-    expect(await deps.refreshTokenRepository.findByTokenHash(hashToken(result.refreshToken))).not.toBeNull();
+    expect(
+      await deps.refreshTokenRepository.findByTokenHash(
+        hashToken(RAW_REFRESH_TOKEN),
+      ),
+    ).toBeNull();
+    expect(
+      await deps.refreshTokenRepository.findByTokenHash(
+        hashToken(result.refreshToken),
+      ),
+    ).not.toBeNull();
+    const claims = JSON.parse(result.accessToken) as { isAdmin: boolean };
+    expect(claims.isAdmin).toBe(false);
   });
 
   it('rejects an invalid client secret', async () => {
@@ -84,7 +107,11 @@ describe('RefreshTokenUseCase', () => {
     await seed(deps);
 
     await expect(
-      deps.useCase.execute({ refreshToken: RAW_REFRESH_TOKEN, clientId: 'budget', clientSecret: 'wrong' }),
+      deps.useCase.execute({
+        refreshToken: RAW_REFRESH_TOKEN,
+        clientId: 'budget',
+        clientSecret: 'wrong',
+      }),
     ).rejects.toThrow('Invalid client credentials');
   });
 
@@ -93,7 +120,11 @@ describe('RefreshTokenUseCase', () => {
     await seed(deps);
 
     await expect(
-      deps.useCase.execute({ refreshToken: 'unknown', clientId: 'budget', clientSecret: RAW_SECRET }),
+      deps.useCase.execute({
+        refreshToken: 'unknown',
+        clientId: 'budget',
+        clientSecret: RAW_SECRET,
+      }),
     ).rejects.toThrow('Invalid refresh token');
   });
 
@@ -102,8 +133,16 @@ describe('RefreshTokenUseCase', () => {
     await seed(deps, new Date(Date.now() - 1000));
 
     await expect(
-      deps.useCase.execute({ refreshToken: RAW_REFRESH_TOKEN, clientId: 'budget', clientSecret: RAW_SECRET }),
+      deps.useCase.execute({
+        refreshToken: RAW_REFRESH_TOKEN,
+        clientId: 'budget',
+        clientSecret: RAW_SECRET,
+      }),
     ).rejects.toThrow('Refresh token expired');
-    expect(await deps.refreshTokenRepository.findByTokenHash(hashToken(RAW_REFRESH_TOKEN))).toBeNull();
+    expect(
+      await deps.refreshTokenRepository.findByTokenHash(
+        hashToken(RAW_REFRESH_TOKEN),
+      ),
+    ).toBeNull();
   });
 });

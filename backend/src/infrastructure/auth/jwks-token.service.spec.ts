@@ -7,7 +7,9 @@ import { JwksTokenService } from './jwks-token.service';
 import { JwtSessionService } from './jwt-session.service';
 import { RsaKeyProvider } from './rsa-key-provider';
 
-async function createKeyProvider(databasePath: string): Promise<RsaKeyProvider> {
+async function createKeyProvider(
+  databasePath: string,
+): Promise<RsaKeyProvider> {
   const config = new ConfigService({ DATABASE_PATH: databasePath });
   const keys = new RsaKeyProvider(config);
   await keys.onModuleInit();
@@ -60,12 +62,19 @@ describe('JwksTokenService', () => {
     const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
     const service = new JwksTokenService(keys);
 
-    const token = await service.signAccessToken({ sub: 'user-1', email: 'alice@example.com', name: 'Alice', aud: 'budget' });
+    const token = await service.signAccessToken({
+      sub: 'user-1',
+      email: 'alice@example.com',
+      name: 'Alice',
+      isAdmin: true,
+      aud: 'budget',
+    });
     const claims = await service.verifyAccessToken(token, 'budget');
 
     expect(claims?.sub).toBe('user-1');
     expect(claims?.email).toBe('alice@example.com');
     expect(claims?.name).toBe('Alice');
+    expect(claims?.isAdmin).toBe(true);
     expect(claims?.aud).toBe('budget');
     expect(claims!.exp - claims!.iat).toBe(ACCESS_TOKEN_TTL);
   });
@@ -74,7 +83,13 @@ describe('JwksTokenService', () => {
     const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
     const service = new JwksTokenService(keys);
 
-    const token = await service.signAccessToken({ sub: 'user-1', email: 'alice@example.com', name: 'Alice', aud: 'budget' });
+    const token = await service.signAccessToken({
+      sub: 'user-1',
+      email: 'alice@example.com',
+      name: 'Alice',
+      isAdmin: false,
+      aud: 'budget',
+    });
 
     expect(await service.verifyAccessToken(token, 'other-client')).toBeNull();
   });

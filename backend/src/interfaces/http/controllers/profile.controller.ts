@@ -11,14 +11,24 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiConsumes, ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { GetUserInfoUseCase, UserInfo } from '../../../application/profile/get-user-info.use-case';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiCookieAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  GetUserInfoUseCase,
+  UserInfo,
+} from '../../../application/profile/get-user-info.use-case';
 import { UpdateProfileUseCase } from '../../../application/profile/update-profile.use-case';
 import { UploadAvatarUseCase } from '../../../application/profile/upload-avatar.use-case';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { SessionAuthGuard, SessionUser } from '../guards/session-auth.guard';
-import { ProfileDto } from '../presenters/user-info.dto';
+import { UserInfoDto } from '../presenters/user-info.dto';
 
 @ApiTags('Profile')
 @ApiCookieAuth('auth_session')
@@ -33,17 +43,19 @@ export class ProfileController {
 
   @Get()
   @ApiOperation({ summary: 'Get the current user profile' })
-  @ApiResponse({ status: 200, type: ProfileDto })
-  async me(@CurrentUser() user: SessionUser): Promise<UserInfo & { isAdmin: boolean }> {
-    const info = await this.getUserInfo.execute(user.id);
-    return { ...info, isAdmin: user.isAdmin };
+  @ApiResponse({ status: 200, type: UserInfoDto })
+  async me(@CurrentUser() user: SessionUser): Promise<UserInfo> {
+    return this.getUserInfo.execute(user.id);
   }
 
   @Patch()
   @HttpCode(204)
   @ApiOperation({ summary: 'Update the current user profile' })
   @ApiResponse({ status: 204, description: 'Profile updated' })
-  async update(@CurrentUser() user: SessionUser, @Body() dto: UpdateProfileDto): Promise<void> {
+  async update(
+    @CurrentUser() user: SessionUser,
+    @Body() dto: UpdateProfileDto,
+  ): Promise<void> {
     await this.updateProfile.execute(user.id, dto);
   }
 
@@ -59,10 +71,16 @@ export class ProfileController {
     },
   })
   @ApiResponse({ status: 204, description: 'Avatar updated' })
-  async avatar(@CurrentUser() user: SessionUser, @UploadedFile() file?: Express.Multer.File): Promise<void> {
+  async avatar(
+    @CurrentUser() user: SessionUser,
+    @UploadedFile() file?: Express.Multer.File,
+  ): Promise<void> {
     if (!file) {
       throw new BadRequestException('Avatar file is required');
     }
-    await this.uploadAvatar.execute(user.id, { contentType: file.mimetype, body: file.buffer });
+    await this.uploadAvatar.execute(user.id, {
+      contentType: file.mimetype,
+      body: file.buffer,
+    });
   }
 }
