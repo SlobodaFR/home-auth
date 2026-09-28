@@ -13,20 +13,38 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiBearerAuth, ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCookieAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { AuthorizeUseCase } from '../../../application/auth/authorize.use-case';
-import { ExchangeCodeUseCase, TokenPair } from '../../../application/auth/exchange-code.use-case';
+import {
+  ExchangeCodeUseCase,
+  TokenPair,
+} from '../../../application/auth/exchange-code.use-case';
+import { LookupUserByEmailUseCase } from '../../../application/auth/lookup-user-by-email.use-case';
 import { RefreshTokenUseCase } from '../../../application/auth/refresh-token.use-case';
-import { GetUserInfoUseCase, UserInfo } from '../../../application/profile/get-user-info.use-case';
+import {
+  GetUserInfoUseCase,
+  UserInfo,
+} from '../../../application/profile/get-user-info.use-case';
 import { SessionService } from '../../../domain/auth/session.service';
 import { UserRepository } from '../../../domain/user/user.repository';
 import { AuthorizeQueryDto } from '../dto/authorize-query.dto';
+import { LookupUserByEmailDto } from '../dto/lookup-user-by-email.dto';
 import { TokenRequestDto } from '../dto/token-request.dto';
-import { AccessTokenGuard, AccessTokenRequest } from '../guards/access-token.guard';
+import {
+  AccessTokenGuard,
+  AccessTokenRequest,
+} from '../guards/access-token.guard';
 import { SESSION_COOKIE_NAME } from '../guards/session-auth.guard';
 import { TokenPairDto } from '../presenters/token-pair.dto';
 import { UserInfoDto } from '../presenters/user-info.dto';
+import { UserLookupDto } from '../presenters/user-lookup.dto';
 
 @ApiTags('OAuth2')
 @Controller()
@@ -36,6 +54,7 @@ export class OAuthController {
     private readonly exchangeCodeUseCase: ExchangeCodeUseCase,
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
     private readonly getUserInfo: GetUserInfoUseCase,
+    private readonly lookupUserByEmailUseCase: LookupUserByEmailUseCase,
     private readonly sessionService: SessionService,
     private readonly userRepository: UserRepository,
     private readonly config: ConfigService,
@@ -48,11 +67,21 @@ export class OAuthController {
     description:
       'Redirects to redirect_uri with an authorization code. If the user has no active session, redirects to the login page first.',
   })
-  @ApiResponse({ status: 302, description: 'Redirect to redirect_uri?code=... or to the login page' })
-  async authorize(@Query() query: AuthorizeQueryDto, @Req() req: Request, @Res() res: Response): Promise<void> {
+  @ApiResponse({
+    status: 302,
+    description: 'Redirect to redirect_uri?code=... or to the login page',
+  })
+  async authorize(
+    @Query() query: AuthorizeQueryDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const userId = await this.getSessionUserId(req);
     if (!userId) {
-      const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
+      const frontendUrl = this.config.get<string>(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      );
       const loginUrl = new URL('/login', frontendUrl);
       loginUrl.searchParams.set('redirect', req.originalUrl);
       res.redirect(loginUrl.toString());
@@ -74,7 +103,10 @@ export class OAuthController {
             ? 'unknown_client'
             : 'invalid_request';
 
-      const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
+      const frontendUrl = this.config.get<string>(
+        'FRONTEND_URL',
+        'http://localhost:3000',
+      );
       const errorUrl = new URL('/error', frontendUrl);
       errorUrl.searchParams.set('reason', reason);
       errorUrl.searchParams.set('client', query.client_id);
@@ -88,7 +120,9 @@ export class OAuthController {
   }
 
   private async getSessionUserId(req: Request): Promise<string | null> {
-    const token = (req.cookies as Record<string, string | undefined>)[SESSION_COOKIE_NAME];
+    const token = (req.cookies as Record<string, string | undefined>)[
+      SESSION_COOKIE_NAME
+    ];
     if (!token) {
       return null;
     }
@@ -101,7 +135,10 @@ export class OAuthController {
   }
 
   @Post('token')
-  @ApiOperation({ summary: 'Exchange an authorization code or refresh token for an access token' })
+  @ApiOperation({
+    summary:
+      'Exchange an authorization code or refresh token for an access token',
+  })
   @ApiResponse({ status: 200, type: TokenPairDto })
   async token(@Body() dto: TokenRequestDto): Promise<TokenPair> {
     if (dto.grant_type === 'authorization_code') {
@@ -136,5 +173,27 @@ export class OAuthController {
       throw new UnauthorizedException('Authentication required');
     }
     return this.getUserInfo.execute(req.user.sub);
+  }
+
+  @Post('users/lookup')
+  @ApiOperation({
+    summary: 'Resolve a User by email for a trusted OAuth2 client',
+    description:
+      'Service-to-service: authenticated by client_id/client_secret in the body, same as /token — no end-user session involved.',
+  })
+  @ApiResponse({ status: 200, type: UserLookupDto })
+  @ApiResponse({ status: 404, description: 'No User with that email' })
+  async lookupUserByEmail(
+    @Body() dto: LookupUserByEmailDto,
+  ): Promise<UserLookupDto> {
+    const user = await this.lookupUserByEmailUseCase.execute({
+      clientId: dto.client_id,
+      clientSecret: dto.client_secret,
+      email: dto.email,
+    });
+    if (!user) {
+      throw new NotFoundException(`No User with email ${dto.email}`);
+    }
+    return user;
   }
 }
