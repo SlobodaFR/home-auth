@@ -33,7 +33,12 @@ const ENTITIES = [
 async function createTestingModule() {
   const moduleRef = await Test.createTestingModule({
     imports: [
-      TypeOrmModule.forRoot({ type: 'better-sqlite3', database: ':memory:', entities: ENTITIES, synchronize: true }),
+      TypeOrmModule.forRoot({
+        type: 'better-sqlite3',
+        database: ':memory:',
+        entities: ENTITIES,
+        synchronize: true,
+      }),
       TypeOrmModule.forFeature(ENTITIES),
     ],
     providers: [
@@ -63,8 +68,12 @@ describe('TypeOrmUserRepository', () => {
     });
     await repository.save(user);
 
-    expect((await repository.findById('user-1'))?.email).toBe('alice@example.com');
-    expect((await repository.findByEmail('alice@example.com'))?.isAdmin).toBe(true);
+    expect((await repository.findById('user-1'))?.email).toBe(
+      'alice@example.com',
+    );
+    expect((await repository.findByEmail('alice@example.com'))?.isAdmin).toBe(
+      true,
+    );
     expect(await repository.count()).toBe(1);
     expect(await repository.findAll()).toHaveLength(1);
 
@@ -88,8 +97,12 @@ describe('TypeOrmClientRepository', () => {
     await repository.save(client);
 
     const stored = await repository.findById('budget');
-    expect(stored?.redirectUris).toEqual(['https://budget.example.com/auth/callback']);
-    expect(stored?.logoutWebhookUrl).toBe('https://budget.example.com/internal/session-revoked');
+    expect(stored?.redirectUris).toEqual([
+      'https://budget.example.com/auth/callback',
+    ]);
+    expect(stored?.logoutWebhookUrl).toBe(
+      'https://budget.example.com/internal/session-revoked',
+    );
 
     await repository.save(client.update({ name: 'Foyer Budget v2' }));
     expect((await repository.findById('budget'))?.name).toBe('Foyer Budget v2');
@@ -106,7 +119,9 @@ describe('TypeOrmClientAccessRepository', () => {
     const moduleRef = await createTestingModule();
     const repository = moduleRef.get(TypeOrmClientAccessRepository);
 
-    await repository.grant(ClientAccess.create({ userId: 'user-1', clientId: 'budget' }));
+    await repository.grant(
+      ClientAccess.create({ userId: 'user-1', clientId: 'budget' }),
+    );
     expect(await repository.exists('user-1', 'budget')).toBe(true);
     expect(await repository.findByClientId('budget')).toEqual([
       ClientAccess.create({ userId: 'user-1', clientId: 'budget' }),
@@ -137,7 +152,9 @@ describe('TypeOrmAuthorizationCodeRepository', () => {
     expect(stored?.used).toBe(false);
 
     await repository.save(stored!.redeem());
-    expect((await repository.findByCodeHash(hashToken('raw-code')))?.used).toBe(true);
+    expect((await repository.findByCodeHash(hashToken('raw-code')))?.used).toBe(
+      true,
+    );
 
     await moduleRef.close();
   });
@@ -157,11 +174,15 @@ describe('TypeOrmRefreshTokenRepository', () => {
     });
     await repository.save(token);
 
-    expect((await repository.findByTokenHash(hashToken('raw-refresh')))?.id).toBe(token.id);
+    expect(
+      (await repository.findByTokenHash(hashToken('raw-refresh')))?.id,
+    ).toBe(token.id);
     expect(await repository.findAllForUser('user-1')).toHaveLength(1);
 
     await repository.deleteById(token.id);
-    expect(await repository.findByTokenHash(hashToken('raw-refresh'))).toBeNull();
+    expect(
+      await repository.findByTokenHash(hashToken('raw-refresh')),
+    ).toBeNull();
 
     await repository.save(token);
     await repository.deleteAllForUser('user-1');
@@ -176,10 +197,44 @@ describe('TypeOrmMagicLinkTokenRepository', () => {
     const moduleRef = await createTestingModule();
     const repository = moduleRef.get(TypeOrmMagicLinkTokenRepository);
 
-    const token = MagicLinkToken.issue({ id: randomUUID(), email: 'alice@example.com', tokenHash: hashToken('raw') });
+    const token = MagicLinkToken.issue({
+      id: randomUUID(),
+      email: 'alice@example.com',
+      tokenHash: hashToken('raw'),
+    });
     await repository.save(token);
 
-    expect((await repository.findByTokenHash(hashToken('raw')))?.email).toBe('alice@example.com');
+    expect((await repository.findByTokenHash(hashToken('raw')))?.email).toBe(
+      'alice@example.com',
+    );
+
+    await moduleRef.close();
+  });
+  it('counts tokens issued for an email since a given date', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmMagicLinkTokenRepository);
+    const now = Date.now();
+    const issue = (email: string, msAgo: number, raw: string) =>
+      repository.save(
+        MagicLinkToken.issue({
+          id: randomUUID(),
+          email,
+          tokenHash: hashToken(raw),
+          issuedAt: new Date(now - msAgo),
+        }),
+      );
+
+    await issue('alice@example.com', 10 * 60 * 1000, 'a1');
+    await issue('alice@example.com', 50 * 60 * 1000, 'a2');
+    await issue('alice@example.com', 70 * 60 * 1000, 'a3');
+    await issue('bob@example.com', 10 * 60 * 1000, 'b1');
+
+    expect(
+      await repository.countIssuedSince(
+        'alice@example.com',
+        new Date(now - 60 * 60 * 1000),
+      ),
+    ).toBe(2);
 
     await moduleRef.close();
   });

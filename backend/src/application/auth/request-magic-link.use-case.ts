@@ -9,6 +9,15 @@ import { User } from '../../domain/user/user';
 import { UserRepository } from '../../domain/user/user.repository';
 import { buildMagicLinkEmailHtml } from '../../infrastructure/email/templates/magic-link-email.template';
 
+/**
+ * Per-email cap on sent links. It protects the user's mailbox and the email
+ * quota; abuse from a single source is handled by the HTTP rate limit. Over
+ * budget the request is silently ignored (same 204 as an unknown email), so an
+ * attacker cannot turn it into a visible lockout of the victim.
+ */
+const MAX_LINKS_PER_EMAIL = 10;
+const LINK_BUDGET_WINDOW_MS = 60 * 60 * 1000;
+
 @Injectable()
 export class RequestMagicLinkUseCase {
   private readonly logger = new Logger(RequestMagicLinkUseCase.name);
@@ -27,9 +36,24 @@ export class RequestMagicLinkUseCase {
     if (!user) {
       user = await this.bootstrapAdminIfEligible(email);
       if (!user) {
-        this.logger.log(`Magic link requested for unknown email ${email}; ignoring (no self-signup)`);
+        this.logger.log(
+          `Magic link requested for unknown email ${email}; ignoring (no self-signup)`,
+        );
         return;
       }
+    }
+
+    const windowStart = new Date(Date.now() - LINK_BUDGET_WINDOW_MS);
+    if (
+      (await this.magicLinkTokenRepository.countIssuedSince(
+        user.email,
+        windowStart,
+      )) >= MAX_LINKS_PER_EMAIL
+    ) {
+      this.logger.warn(
+        'Magic link budget exhausted for a user; ignoring request',
+      );
+      return;
     }
 
     const rawToken = randomBytes(32).toString('hex');
@@ -40,7 +64,10 @@ export class RequestMagicLinkUseCase {
     });
     await this.magicLinkTokenRepository.save(magicLinkToken);
 
-    const authBaseUrl = this.config.get<string>('AUTH_BASE_URL', 'http://localhost:3000');
+    const authBaseUrl = this.config.get<string>(
+      'AUTH_BASE_URL',
+      'http://localhost:3000',
+    );
     let link = `${authBaseUrl.replace(/\/$/, '')}/auth/callback?token=${rawToken}`;
     if (redirect?.startsWith('/authorize?')) {
       link += `&redirect=${encodeURIComponent(redirect)}`;
@@ -54,7 +81,10 @@ export class RequestMagicLinkUseCase {
   }
 
   private async bootstrapAdminIfEligible(email: string): Promise<User | null> {
-    const adminEmail = this.config.get<string>('ADMIN_EMAIL')?.trim().toLowerCase();
+    const adminEmail = this.config
+      .get<string>('ADMIN_EMAIL')
+      ?.trim()
+      .toLowerCase();
     if (!adminEmail || email !== adminEmail) {
       return null;
     }

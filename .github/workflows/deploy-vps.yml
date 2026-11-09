@@ -82,6 +82,7 @@ jobs:
             cat > /opt/auth-service/deploy/.env <<EOF
             NODE_ENV=production
             PORT=3000
+            TRUST_PROXY_HOPS=1
             ADMIN_EMAIL=$ADMIN_EMAIL
             AUTH_BASE_URL=$AUTH_BASE_URL
             FRONTEND_URL=$FRONTEND_URL

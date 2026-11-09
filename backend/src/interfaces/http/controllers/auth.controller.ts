@@ -1,6 +1,19 @@
-import { Body, Controller, HttpCode, Post, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiCookieAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiCookieAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { hours, Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { LogoutUseCase } from '../../../application/auth/logout.use-case';
 import { RequestMagicLinkUseCase } from '../../../application/auth/request-magic-link.use-case';
@@ -9,7 +22,11 @@ import { SESSION_TTL } from '../../../domain/auth/session.service';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { AuthCallbackDto } from '../dto/auth-callback.dto';
 import { RequestMagicLinkDto } from '../dto/request-magic-link.dto';
-import { SESSION_COOKIE_NAME, SessionAuthGuard, SessionUser } from '../guards/session-auth.guard';
+import {
+  SESSION_COOKIE_NAME,
+  SessionAuthGuard,
+  SessionUser,
+} from '../guards/session-auth.guard';
 import { AuthCallbackResponseDto } from '../presenters/auth-callback-response.dto';
 
 const SESSION_COOKIE_MAX_AGE_MS = SESSION_TTL * 1000;
@@ -26,8 +43,13 @@ export class AuthController {
 
   @Post('request-link')
   @HttpCode(204)
+  @Throttle({ default: { limit: 20, ttl: hours(1) } })
+  @ApiResponse({ status: 429, description: 'Too many requests from this IP' })
   @ApiOperation({ summary: 'Send a magic-link sign-in email' })
-  @ApiResponse({ status: 204, description: 'Email sent (if the address is known)' })
+  @ApiResponse({
+    status: 204,
+    description: 'Email sent (if the address is known)',
+  })
   async requestLink(@Body() dto: RequestMagicLinkDto): Promise<void> {
     await this.requestMagicLink.execute(dto.email, dto.redirect);
   }
@@ -58,7 +80,10 @@ export class AuthController {
   @ApiCookieAuth('auth_session')
   @ApiOperation({ summary: 'Log out and clear the session cookie' })
   @ApiResponse({ status: 204, description: 'Logged out' })
-  async logout(@CurrentUser() user: SessionUser, @Res({ passthrough: true }) res: Response): Promise<void> {
+  async logout(
+    @CurrentUser() user: SessionUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
     await this.logoutUseCase.execute(user.id);
     res.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
   }

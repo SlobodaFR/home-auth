@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { MagicLinkToken } from '../../../domain/auth/magic-link-token';
+import { MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  MAGIC_LINK_TOKEN_TTL_MS,
+  MagicLinkToken,
+} from '../../../domain/auth/magic-link-token';
 import { MagicLinkTokenRepository } from '../../../domain/auth/magic-link-token.repository';
 import { MagicLinkTokenOrmEntity } from '../entities/magic-link-token.orm-entity';
 
@@ -27,6 +30,18 @@ export class TypeOrmMagicLinkTokenRepository extends MagicLinkTokenRepository {
   async findByTokenHash(tokenHash: string): Promise<MagicLinkToken | null> {
     const row = await this.repository.findOne({ where: { tokenHash } });
     return row ? this.toDomain(row) : null;
+  }
+
+  async countIssuedSince(email: string, since: Date): Promise<number> {
+    // Only expires_at is persisted; issuedAt = expiresAt - TTL.
+    return this.repository.count({
+      where: {
+        email,
+        expiresAt: MoreThanOrEqual(
+          new Date(since.getTime() + MAGIC_LINK_TOKEN_TTL_MS),
+        ),
+      },
+    });
   }
 
   private toDomain(row: MagicLinkTokenOrmEntity): MagicLinkToken {

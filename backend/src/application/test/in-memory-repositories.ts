@@ -16,7 +16,10 @@ import { Client } from '../../domain/client/client';
 import { ClientRepository } from '../../domain/client/client.repository';
 import { ClientAccess } from '../../domain/client-access/client-access';
 import { ClientAccessRepository } from '../../domain/client-access/client-access.repository';
-import { AvatarStorage, StoredAvatar } from '../../domain/shared/avatar-storage';
+import {
+  AvatarStorage,
+  StoredAvatar,
+} from '../../domain/shared/avatar-storage';
 import { EmailMessage, EmailSender } from '../../domain/shared/email-sender';
 import { WebhookNotifier } from '../../domain/shared/webhook-notifier';
 import { User } from '../../domain/user/user';
@@ -31,7 +34,9 @@ export class InMemoryUserRepository extends UserRepository {
 
   async findByEmail(email: string): Promise<User | null> {
     const normalized = email.trim().toLowerCase();
-    return [...this.users.values()].find((user) => user.email === normalized) ?? null;
+    return (
+      [...this.users.values()].find((user) => user.email === normalized) ?? null
+    );
   }
 
   async findAll(): Promise<User[]> {
@@ -75,11 +80,15 @@ export class InMemoryClientAccessRepository extends ClientAccessRepository {
   }
 
   async exists(userId: string, clientId: string): Promise<boolean> {
-    return this.entries.has(InMemoryClientAccessRepository.key(userId, clientId));
+    return this.entries.has(
+      InMemoryClientAccessRepository.key(userId, clientId),
+    );
   }
 
   async grant(access: ClientAccess): Promise<void> {
-    this.entries.add(InMemoryClientAccessRepository.key(access.userId, access.clientId));
+    this.entries.add(
+      InMemoryClientAccessRepository.key(access.userId, access.clientId),
+    );
   }
 
   async revoke(userId: string, clientId: string): Promise<void> {
@@ -89,7 +98,9 @@ export class InMemoryClientAccessRepository extends ClientAccessRepository {
   async findByClientId(clientId: string): Promise<ClientAccess[]> {
     return [...this.entries]
       .filter((key) => key.endsWith(`::${clientId}`))
-      .map((key) => ClientAccess.create({ userId: key.split('::')[0], clientId }));
+      .map((key) =>
+        ClientAccess.create({ userId: key.split('::')[0], clientId }),
+      );
   }
 }
 
@@ -113,7 +124,11 @@ export class InMemoryRefreshTokenRepository extends RefreshTokenRepository {
   }
 
   async findByTokenHash(tokenHash: string): Promise<RefreshToken | null> {
-    return [...this.tokens.values()].find((token) => token.tokenHash === tokenHash) ?? null;
+    return (
+      [...this.tokens.values()].find(
+        (token) => token.tokenHash === tokenHash,
+      ) ?? null
+    );
   }
 
   async findAllForUser(userId: string): Promise<RefreshToken[]> {
@@ -143,6 +158,13 @@ export class InMemoryMagicLinkTokenRepository extends MagicLinkTokenRepository {
   async findByTokenHash(tokenHash: string): Promise<MagicLinkToken | null> {
     return this.tokens.get(tokenHash) ?? null;
   }
+
+  async countIssuedSince(email: string, since: Date): Promise<number> {
+    return [...this.tokens.values()].filter(
+      (token) =>
+        token.email === email && token.issuedAt.getTime() >= since.getTime(),
+    ).length;
+  }
 }
 
 export class FakeEmailSender extends EmailSender {
@@ -154,13 +176,23 @@ export class FakeEmailSender extends EmailSender {
 }
 
 export class FakeTokenService extends TokenService {
-  async signAccessToken(payload: AccessTokenPayload, ttlSeconds: number = ACCESS_TOKEN_TTL): Promise<string> {
+  async signAccessToken(
+    payload: AccessTokenPayload,
+    ttlSeconds: number = ACCESS_TOKEN_TTL,
+  ): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
-    const claims: AccessTokenClaims = { ...payload, iat: now, exp: now + ttlSeconds };
+    const claims: AccessTokenClaims = {
+      ...payload,
+      iat: now,
+      exp: now + ttlSeconds,
+    };
     return JSON.stringify(claims);
   }
 
-  async verifyAccessToken(token: string, audience?: string): Promise<AccessTokenClaims | null> {
+  async verifyAccessToken(
+    token: string,
+    audience?: string,
+  ): Promise<AccessTokenClaims | null> {
     try {
       const claims = JSON.parse(token) as AccessTokenClaims;
       if (audience && claims.aud !== audience) {
