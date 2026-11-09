@@ -1,14 +1,26 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Number of reverse-proxy hops to trust for X-Forwarded-For (req.ip feeds
+  // the rate limit). Production: 1 (Caddy, which drops client-sent
+  // X-Forwarded-For since no trusted_proxies is configured). Unset in local
+  // dev, otherwise any client could spoof its IP.
+  const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 0);
+  if (trustProxyHops > 0) {
+    app.set('trust proxy', trustProxyHops);
+  }
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.use(cookieParser());
-  app.enableCors({ origin: process.env.FRONTEND_URL ?? true, credentials: true });
+  app.enableCors({
+    origin: process.env.FRONTEND_URL ?? true,
+    credentials: true,
+  });
 
   const config = new DocumentBuilder()
     .setTitle('Auth Service')

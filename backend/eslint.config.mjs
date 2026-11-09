@@ -49,7 +49,7 @@ export default tseslint.config(
   },
   {
     // In-memory fakes implement async repository/service ports synchronously by design.
-    files: ['src/application/test/**'],
+    files: ['**/src/application/test/**'],
     rules: {
       '@typescript-eslint/require-await': 'off',
     },

@@ -6,7 +6,7 @@ export interface MagicLinkTokenProps {
   consumedAt: Date | null;
 }
 
-const TTL_MS = 15 * 60 * 1000;
+export const MAGIC_LINK_TOKEN_TTL_MS = 15 * 60 * 1000;
 
 /**
  * A single-use, time-limited login token sent by email. Only its hash is
@@ -15,13 +15,17 @@ const TTL_MS = 15 * 60 * 1000;
 export class MagicLinkToken {
   private constructor(private readonly props: MagicLinkTokenProps) {}
 
-  static issue(props: Omit<MagicLinkTokenProps, 'consumedAt' | 'expiresAt'> & { issuedAt?: Date }): MagicLinkToken {
+  static issue(
+    props: Omit<MagicLinkTokenProps, 'consumedAt' | 'expiresAt'> & {
+      issuedAt?: Date;
+    },
+  ): MagicLinkToken {
     const issuedAt = props.issuedAt ?? new Date();
     return new MagicLinkToken({
       id: props.id,
       email: props.email,
       tokenHash: props.tokenHash,
-      expiresAt: new Date(issuedAt.getTime() + TTL_MS),
+      expiresAt: new Date(issuedAt.getTime() + MAGIC_LINK_TOKEN_TTL_MS),
       consumedAt: null,
     });
   }
@@ -48,6 +52,10 @@ export class MagicLinkToken {
 
   get consumedAt(): Date | null {
     return this.props.consumedAt;
+  }
+
+  get issuedAt(): Date {
+    return new Date(this.props.expiresAt.getTime() - MAGIC_LINK_TOKEN_TTL_MS);
   }
 
   isExpired(now: Date = new Date()): boolean {

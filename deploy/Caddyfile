@@ -1,3 +1,7 @@
+# Pas de `trusted_proxies` : Caddy ignore les X-Forwarded-For envoyes par les
+# clients et transmet la vraie IP. Le backend fait confiance a 1 saut
+# (TRUST_PROXY_HOPS=1) pour son rate limit ; ne pas ajouter de proxy devant
+# sans ajuster cette valeur.
 auth.sloboda.fr {
     reverse_proxy 127.0.0.1:3000
 }
