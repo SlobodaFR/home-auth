@@ -1,0 +1,63 @@
+name: Diagnose data path (non-root)
+
+# One-shot diagnosis: checks, as the `node` user, whether the directory of
+# DATABASE_PATH is writable. Does not start the app nor Litestream.
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Load secrets from 1Password
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          VPS_HOST: op://TECH/thomassloboda_home_secrets/VPS_HOST
+          VPS_USER: op://TECH/thomassloboda_home_secrets/VPS_USER
+          VPS_SSH_KEY: op://TECH/thomassloboda_home_secrets/VPS_PRIVATE_KEY
+
+      - name: Normalize VPS_SSH_KEY
+        run: |
+          {
+            echo "VPS_SSH_KEY<<EOF_SSH_KEY"
+            echo "-----BEGIN OPENSSH PRIVATE KEY-----"
+            printf '%s' "$VPS_SSH_KEY" | tr -d ' '
+            echo
+            echo "-----END OPENSSH PRIVATE KEY-----"
+            echo "EOF_SSH_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Diagnose as node user
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ env.VPS_SSH_KEY }}
+          script: |
+            set -e
+            CONTAINER=$(docker ps -q --filter label=com.docker.compose.project=auth-service --filter label=com.docker.compose.service=auth-service)
+            IMAGE=$(docker inspect -f '{{.Config.Image}}' "$CONTAINER")
+            VOLUME=$(docker volume ls -q --filter label=com.docker.compose.project=auth-service | grep 'auth-data$')
+            echo "image=$IMAGE volume=$VOLUME"
+            echo "--- current container log (tail 30)"
+            docker logs --tail 30 "$CONTAINER" 2>&1 || true
+            echo "--- as node"
+            docker run --rm --user node --env-file /opt/auth-service/deploy/.env \
+              -v "$VOLUME":/app/backend/data -w /app/backend --entrypoint sh "$IMAGE" -c '
+                id
+                echo "cwd=$(pwd)"
+                DIR=$(dirname "$DATABASE_PATH")
+                echo "db dir=$DIR"
+                ls -ld "$DIR" 2>&1 || echo "db dir missing"
+                ls -l "$DIR" 2>&1 | sed "s/ *[0-9]* [A-Z][a-z][a-z] .*  */ /" | head -20
+                ls -ld /app/backend/data
+                [ -w "$DIR" ] && echo "db dir WRITABLE" || echo "db dir NOT writable"
+                for f in "$DATABASE_PATH" "$DATABASE_PATH-wal" "$DATABASE_PATH-shm" "$DIR/jwt-private.pem"; do
+                  [ -e "$f" ] && { [ -r "$f" ] && [ -w "$f" ] && echo "$f rw OK" || echo "$f NOT rw"; } || echo "$f absent"
+                done
+                [ -n "$MINIO_BUCKET" ] && echo "litestream: enabled" || echo "litestream: disabled"
+              '
