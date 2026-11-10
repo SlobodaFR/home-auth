@@ -45,9 +45,7 @@ COPY --from=backend-build /app/backend/package.json backend/package.json
 COPY backend/litestream.yml backend/litestream.yml
 COPY backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
-    && mkdir -p /app/backend/data \
-    && chown node:node /app/backend/data
-USER node
+    && mkdir -p /app/backend/data
 VOLUME ["/app/backend/data"]
 WORKDIR /app/backend
 EXPOSE 3000
