@@ -23,7 +23,7 @@ const QUIET_PATHS = [
   /^\/avatars\//,
   /^\/\.well-known\/jwks\.json$/,
   /^\/docs(\/|$)/,
-  /^\/healthz$/,
+  /^\/healthz\/?$/,
 ];
 
 function pathOf(url: string | undefined): string {

@@ -55,6 +55,7 @@ export class RuntimeHealthMonitor
   }
 
   start(): void {
+    this.stop(); // idempotent: never leak a previous histogram or timer
     this.histogram = monitorEventLoopDelay({
       resolution: HISTOGRAM_RESOLUTION_MS,
     });

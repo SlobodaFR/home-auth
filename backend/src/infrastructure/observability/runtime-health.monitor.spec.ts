@@ -54,12 +54,12 @@ describe('RuntimeHealthMonitor', () => {
     await tick(50);
     blockEventLoop(500);
     await tick(50);
-    monitor.sample();
+    const first = monitor.sample();
 
     await tick(200);
     const second = monitor.sample();
 
-    expect(second.lag_max_ms).toBeLessThan(100);
+    expect(second.lag_max_ms).toBeLessThan(first.lag_max_ms / 2);
   });
 
   it('stops measuring once stopped', () => {

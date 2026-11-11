@@ -4,6 +4,7 @@
 # sans ajuster cette valeur.
 auth.sloboda.fr {
     # Interne : etat du service, lisible seulement depuis le VPS (curl 127.0.0.1:3000/healthz).
-    respond /healthz 404
+    # /healthz* : un matcher de chemin Caddy est exact, /healthz/ passerait sinon (Express l'accepte).
+    respond /healthz* 404
     reverse_proxy 127.0.0.1:3000
 }

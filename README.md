@@ -54,7 +54,7 @@ Voir [`backend/.env.example`](backend/.env.example) pour la liste complète. Poi
 
 ## Supervision
 
-- `GET /healthz` (interne, bloqué par Caddy) : `{ status, runtime }`, avec le dernier échantillon de l'event loop (lag p50/p99/max, utilisation, mémoire), pris toutes les minutes. Depuis le VPS : `curl -s 127.0.0.1:3000/healthz`.
+- `GET /healthz` (interne, bloqué par Caddy) : `{ status, runtime }`, avec le dernier échantillon de l'event loop (lag p50/p99/max, utilisation, mémoire), pris toutes les minutes. Depuis le VPS : `curl -s 127.0.0.1:3000/healthz`. Le `HEALTHCHECK` Docker l'interroge toutes les 30 s ; c'est informatif (`docker ps`) : Docker ne redémarre pas un conteneur _unhealthy_.
 - Le même échantillon part dans PostHog (`runtime_health`). Un warn est logué si le lag p99 dépasse 100 ms, et chaque requête SQLite de plus de 20 ms est loguée (sans ses paramètres).
 
 ## API
