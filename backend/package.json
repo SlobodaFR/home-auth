@@ -12,7 +12,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:mutation": "stryker run"
+    "test:mutation": "stryker run",
+    "migration:generate": "nest build && typeorm migration:generate -d dist/infrastructure/persistence/data-source.js",
+    "migration:run": "nest build && typeorm migration:run -d dist/infrastructure/persistence/data-source.js",
+    "migration:show": "nest build && typeorm migration:show -d dist/infrastructure/persistence/data-source.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.682.0",

@@ -57,6 +57,19 @@ Voir [`backend/.env.example`](backend/.env.example) pour la liste complète. Poi
 - `GET /healthz` (interne, bloqué par Caddy) : `{ status, runtime }`, avec le dernier échantillon de l'event loop (lag p50/p99/max, utilisation, mémoire), pris toutes les minutes. Depuis le VPS : `curl -s 127.0.0.1:3000/healthz`. Le `HEALTHCHECK` Docker l'interroge toutes les 30 s ; c'est informatif (`docker ps`) : Docker ne redémarre pas un conteneur _unhealthy_.
 - Le même échantillon part dans PostHog (`runtime_health`). Un warn est logué si le lag p99 dépasse 100 ms, et chaque requête SQLite de plus de 20 ms est loguée (sans ses paramètres).
 
+## Base de données
+
+Le schéma est géré par des migrations TypeORM, jouées au démarrage (`migrationsRun`) ; `synchronize` est désactivé.
+
+```bash
+npm run migration:generate --workspace=backend -- src/infrastructure/persistence/migrations/<Nom>
+npm run migration:show --workspace=backend
+```
+
+Chaque migration est relue, puis ajoutée à `MIGRATIONS` (`backend/src/infrastructure/persistence/migrations/index.ts`).
+
+Ces commandes tournent en local, sur le code compilé (`nest build`), avec `DATABASE_PATH` pointant sur la base visée : l'image de production ne contient ni les sources ni les outils de dev. Au démarrage, le service refuse de démarrer si, après les migrations, le schéma diffère des entités.
+
 ## API
 
 ### OAuth2 / OIDC

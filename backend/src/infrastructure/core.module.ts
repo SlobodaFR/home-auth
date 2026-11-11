@@ -23,12 +23,7 @@ import { JwtSessionService } from './auth/jwt-session.service';
 import { RsaKeyProvider } from './auth/rsa-key-provider';
 import { ResendEmailSender } from './email/resend-email-sender';
 import { RuntimeHealthMonitor } from './observability/runtime-health.monitor';
-import { AuthorizationCodeOrmEntity } from './persistence/entities/authorization-code.orm-entity';
-import { ClientAccessOrmEntity } from './persistence/entities/client-access.orm-entity';
-import { ClientOrmEntity } from './persistence/entities/client.orm-entity';
-import { MagicLinkTokenOrmEntity } from './persistence/entities/magic-link-token.orm-entity';
-import { RefreshTokenOrmEntity } from './persistence/entities/refresh-token.orm-entity';
-import { UserOrmEntity } from './persistence/entities/user.orm-entity';
+import { ENTITIES } from './persistence/entities';
 import { TypeOrmAuthorizationCodeRepository } from './persistence/repositories/typeorm-authorization-code.repository';
 import { TypeOrmClientAccessRepository } from './persistence/repositories/typeorm-client-access.repository';
 import { TypeOrmClientRepository } from './persistence/repositories/typeorm-client.repository';
@@ -39,15 +34,6 @@ import { TokenPurgeScheduler } from './scheduling/token-purge.scheduler';
 import { S3AvatarStorage } from './storage/s3-avatar-storage';
 import { createPostHogTelemetry } from './telemetry/posthog-telemetry';
 import { HttpWebhookNotifier } from './webhook/http-webhook-notifier';
-
-const ENTITIES = [
-  UserOrmEntity,
-  ClientOrmEntity,
-  ClientAccessOrmEntity,
-  AuthorizationCodeOrmEntity,
-  RefreshTokenOrmEntity,
-  MagicLinkTokenOrmEntity,
-];
 
 /**
  * Wires domain ports to their infrastructure implementations and exposes

@@ -11,27 +11,13 @@ import { Client } from '../../../domain/client/client';
 import { ClientAccess } from '../../../domain/client-access/client-access';
 import { hashToken } from '../../../domain/shared/hash';
 import { User } from '../../../domain/user/user';
-import { AuthorizationCodeOrmEntity } from '../entities/authorization-code.orm-entity';
-import { ClientAccessOrmEntity } from '../entities/client-access.orm-entity';
-import { ClientOrmEntity } from '../entities/client.orm-entity';
-import { MagicLinkTokenOrmEntity } from '../entities/magic-link-token.orm-entity';
-import { RefreshTokenOrmEntity } from '../entities/refresh-token.orm-entity';
-import { UserOrmEntity } from '../entities/user.orm-entity';
+import { ENTITIES } from '../entities';
 import { TypeOrmAuthorizationCodeRepository } from './typeorm-authorization-code.repository';
 import { TypeOrmClientAccessRepository } from './typeorm-client-access.repository';
 import { TypeOrmClientRepository } from './typeorm-client.repository';
 import { TypeOrmMagicLinkTokenRepository } from './typeorm-magic-link-token.repository';
 import { TypeOrmRefreshTokenRepository } from './typeorm-refresh-token.repository';
 import { TypeOrmUserRepository } from './typeorm-user.repository';
-
-const ENTITIES = [
-  UserOrmEntity,
-  ClientOrmEntity,
-  ClientAccessOrmEntity,
-  AuthorizationCodeOrmEntity,
-  RefreshTokenOrmEntity,
-  MagicLinkTokenOrmEntity,
-];
 
 async function createTestingModule() {
   const moduleRef = await Test.createTestingModule({
