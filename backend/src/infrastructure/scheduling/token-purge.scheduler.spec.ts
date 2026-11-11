@@ -49,7 +49,9 @@ describe('TokenPurgeScheduler', () => {
 
   it('logs a failed purge without propagating it', async () => {
     const error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
-    execute.mockRejectedValueOnce(new Error('SQLITE_BUSY'));
+    execute.mockRejectedValueOnce(
+      Object.assign(new Error('database is locked'), { code: 'SQLITE_BUSY' }),
+    );
 
     expect(() => {
       scheduler.onApplicationBootstrap();
@@ -58,5 +60,6 @@ describe('TokenPurgeScheduler', () => {
 
     expect(error).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(error.mock.calls)).toContain('Token purge failed');
+    expect(JSON.stringify(error.mock.calls)).toContain('SQLITE_BUSY');
   });
 });

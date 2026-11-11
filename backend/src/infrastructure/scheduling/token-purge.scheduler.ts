@@ -42,8 +42,11 @@ export class TokenPurgeScheduler
         );
       })
       .catch((error: unknown) => {
+        // Class and SQLite code only (e.g. SQLITE_BUSY): no message, no data.
+        const name = error instanceof Error ? error.name : 'unknown error';
+        const code = (error as { code?: unknown } | null)?.code;
         this.logger.error(
-          `Token purge failed (${error instanceof Error ? error.name : 'unknown error'})`,
+          `Token purge failed (${typeof code === 'string' ? `${name} ${code}` : name})`,
         );
       });
   }
