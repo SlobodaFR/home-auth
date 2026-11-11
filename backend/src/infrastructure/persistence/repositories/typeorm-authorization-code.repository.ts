@@ -22,6 +22,7 @@ export class TypeOrmAuthorizationCodeRepository extends AuthorizationCodeReposit
       redirectUri: code.redirectUri,
       expiresAt: code.expiresAt,
       used: code.used,
+      codeChallenge: code.codeChallenge,
     });
   }
 

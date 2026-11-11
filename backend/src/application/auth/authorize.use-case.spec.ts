@@ -14,9 +14,19 @@ describe('AuthorizeUseCase', () => {
   function createUseCase() {
     const clientRepository = new InMemoryClientRepository();
     const clientAccessRepository = new InMemoryClientAccessRepository();
-    const authorizationCodeRepository = new InMemoryAuthorizationCodeRepository();
-    const useCase = new AuthorizeUseCase(clientRepository, clientAccessRepository, authorizationCodeRepository);
-    return { useCase, clientRepository, clientAccessRepository, authorizationCodeRepository };
+    const authorizationCodeRepository =
+      new InMemoryAuthorizationCodeRepository();
+    const useCase = new AuthorizeUseCase(
+      clientRepository,
+      clientAccessRepository,
+      authorizationCodeRepository,
+    );
+    return {
+      useCase,
+      clientRepository,
+      clientAccessRepository,
+      authorizationCodeRepository,
+    };
   }
 
   async function seedClient(clientRepository: InMemoryClientRepository) {
@@ -33,33 +43,82 @@ describe('AuthorizeUseCase', () => {
   }
 
   it('issues an authorization code for an authorized user', async () => {
-    const { useCase, clientRepository, clientAccessRepository, authorizationCodeRepository } = createUseCase();
+    const {
+      useCase,
+      clientRepository,
+      clientAccessRepository,
+      authorizationCodeRepository,
+    } = createUseCase();
     await seedClient(clientRepository);
-    await clientAccessRepository.grant(ClientAccess.create({ userId: 'user-1', clientId: 'budget' }));
+    await clientAccessRepository.grant(
+      ClientAccess.create({ userId: 'user-1', clientId: 'budget' }),
+    );
 
-    const code = await useCase.execute({ userId: 'user-1', clientId: 'budget', redirectUri: REDIRECT_URI });
+    const code = await useCase.execute({
+      userId: 'user-1',
+      clientId: 'budget',
+      redirectUri: REDIRECT_URI,
+    });
 
     expect(code).toHaveLength(64);
-    const stored = await authorizationCodeRepository.findByCodeHash(hashToken(code));
+    const stored = await authorizationCodeRepository.findByCodeHash(
+      hashToken(code),
+    );
     expect(stored?.userId).toBe('user-1');
     expect(stored?.clientId).toBe('budget');
     expect(stored?.redirectUri).toBe(REDIRECT_URI);
   });
 
+  it('stores the PKCE challenge with the code', async () => {
+    const {
+      useCase,
+      clientRepository,
+      clientAccessRepository,
+      authorizationCodeRepository,
+    } = createUseCase();
+    await seedClient(clientRepository);
+    await clientAccessRepository.grant(
+      ClientAccess.create({ userId: 'user-1', clientId: 'budget' }),
+    );
+
+    const code = await useCase.execute({
+      userId: 'user-1',
+      clientId: 'budget',
+      redirectUri: REDIRECT_URI,
+      codeChallenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+    });
+
+    expect(
+      (await authorizationCodeRepository.findByCodeHash(hashToken(code)))
+        ?.codeChallenge,
+    ).toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
+  });
+
   it('rejects an unknown client', async () => {
     const { useCase } = createUseCase();
-    await expect(useCase.execute({ userId: 'user-1', clientId: 'unknown', redirectUri: REDIRECT_URI })).rejects.toThrow(
-      'Unknown client: unknown',
-    );
+    await expect(
+      useCase.execute({
+        userId: 'user-1',
+        clientId: 'unknown',
+        redirectUri: REDIRECT_URI,
+      }),
+    ).rejects.toThrow('Unknown client: unknown');
   });
 
   it('rejects a redirect_uri not registered for the client', async () => {
-    const { useCase, clientRepository, clientAccessRepository } = createUseCase();
+    const { useCase, clientRepository, clientAccessRepository } =
+      createUseCase();
     await seedClient(clientRepository);
-    await clientAccessRepository.grant(ClientAccess.create({ userId: 'user-1', clientId: 'budget' }));
+    await clientAccessRepository.grant(
+      ClientAccess.create({ userId: 'user-1', clientId: 'budget' }),
+    );
 
     await expect(
-      useCase.execute({ userId: 'user-1', clientId: 'budget', redirectUri: 'https://evil.example.com' }),
+      useCase.execute({
+        userId: 'user-1',
+        clientId: 'budget',
+        redirectUri: 'https://evil.example.com',
+      }),
     ).rejects.toThrow('Invalid redirect_uri');
   });
 
@@ -67,8 +126,12 @@ describe('AuthorizeUseCase', () => {
     const { useCase, clientRepository } = createUseCase();
     await seedClient(clientRepository);
 
-    await expect(useCase.execute({ userId: 'user-1', clientId: 'budget', redirectUri: REDIRECT_URI })).rejects.toThrow(
-      'User is not authorized for client budget',
-    );
+    await expect(
+      useCase.execute({
+        userId: 'user-1',
+        clientId: 'budget',
+        redirectUri: REDIRECT_URI,
+      }),
+    ).rejects.toThrow('User is not authorized for client budget');
   });
 });

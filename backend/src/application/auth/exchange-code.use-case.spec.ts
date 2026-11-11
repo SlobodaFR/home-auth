@@ -44,7 +44,10 @@ describe('ExchangeCodeUseCase', () => {
     };
   }
 
-  async function seed(deps: ReturnType<typeof createUseCase>) {
+  async function seed(
+    deps: ReturnType<typeof createUseCase>,
+    codeChallenge: string | null = null,
+  ) {
     await deps.clientRepository.save(
       Client.create({
         id: 'budget',
@@ -71,6 +74,7 @@ describe('ExchangeCodeUseCase', () => {
         userId: 'user-1',
         clientId: 'budget',
         redirectUri: REDIRECT_URI,
+        codeChallenge,
       }),
     );
   }
@@ -214,5 +218,77 @@ describe('ExchangeCodeUseCase', () => {
     expect(String(rejected?.reason)).toContain(
       'Authorization code already used',
     );
+  });
+
+  describe('PKCE (#15)', () => {
+    const VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+    const CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
+    const exchange = (
+      deps: ReturnType<typeof createUseCase>,
+      codeVerifier?: string,
+    ) =>
+      deps.useCase.execute({
+        code: RAW_CODE,
+        clientId: 'budget',
+        clientSecret: RAW_SECRET,
+        redirectUri: REDIRECT_URI,
+        codeVerifier,
+      });
+
+    it('exchanges a code with the matching verifier', async () => {
+      const deps = createUseCase();
+      await seed(deps, CHALLENGE);
+
+      await expect(exchange(deps, VERIFIER)).resolves.toMatchObject({
+        tokenType: 'Bearer',
+      });
+    });
+
+    it.each([
+      ['a missing verifier', undefined],
+      ['a wrong verifier', `${VERIFIER.slice(0, -1)}x`],
+    ])('refuses %s without burning the code', async (_label, verifier) => {
+      const deps = createUseCase();
+      await seed(deps, CHALLENGE);
+
+      await expect(exchange(deps, verifier)).rejects.toThrow(
+        'Invalid authorization code',
+      );
+      expect(
+        (
+          await deps.authorizationCodeRepository.findByCodeHash(
+            hashToken(RAW_CODE),
+          )
+        )?.used,
+      ).toBe(false);
+      await expect(exchange(deps, VERIFIER)).resolves.toMatchObject({
+        tokenType: 'Bearer',
+      });
+    });
+
+    it('refuses a verifier for a code issued without challenge (downgrade)', async () => {
+      const deps = createUseCase();
+      await seed(deps);
+
+      await expect(exchange(deps, VERIFIER)).rejects.toThrow(
+        'Invalid authorization code',
+      );
+      expect(
+        (
+          await deps.authorizationCodeRepository.findByCodeHash(
+            hashToken(RAW_CODE),
+          )
+        )?.used,
+      ).toBe(false);
+    });
+
+    it('keeps clients without PKCE working', async () => {
+      const deps = createUseCase();
+      await seed(deps);
+
+      await expect(exchange(deps)).resolves.toMatchObject({
+        tokenType: 'Bearer',
+      });
+    });
   });
 });

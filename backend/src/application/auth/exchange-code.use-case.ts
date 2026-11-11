@@ -21,6 +21,8 @@ export interface ExchangeCodeInput {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
+  /** PKCE verifier, required when /authorize received a challenge. */
+  codeVerifier?: string;
 }
 
 export interface TokenPair {
@@ -60,6 +62,11 @@ export class ExchangeCodeUseCase {
       authorizationCode?.clientId !== input.clientId ||
       authorizationCode.redirectUri !== input.redirectUri
     ) {
+      throw new UnauthorizedException('Invalid authorization code');
+    }
+
+    // PKCE before redeeming: a request without the right verifier must not burn the code.
+    if (!authorizationCode.matchesVerifier(input.codeVerifier)) {
       throw new UnauthorizedException('Invalid authorization code');
     }
 

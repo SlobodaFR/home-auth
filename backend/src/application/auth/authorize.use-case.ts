@@ -1,5 +1,10 @@
 import { randomBytes } from 'crypto';
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AuthorizationCode } from '../../domain/auth/authorization-code';
 import { AuthorizationCodeRepository } from '../../domain/auth/authorization-code.repository';
 import { ClientRepository } from '../../domain/client/client.repository';
@@ -10,6 +15,8 @@ export interface AuthorizeInput {
   userId: string;
   clientId: string;
   redirectUri: string;
+  /** PKCE S256 challenge, when the client uses PKCE. */
+  codeChallenge?: string;
 }
 
 @Injectable()
@@ -29,9 +36,14 @@ export class AuthorizeUseCase {
       throw new BadRequestException('Invalid redirect_uri');
     }
 
-    const hasAccess = await this.clientAccessRepository.exists(input.userId, input.clientId);
+    const hasAccess = await this.clientAccessRepository.exists(
+      input.userId,
+      input.clientId,
+    );
     if (!hasAccess) {
-      throw new ForbiddenException(`User is not authorized for client ${input.clientId}`);
+      throw new ForbiddenException(
+        `User is not authorized for client ${input.clientId}`,
+      );
     }
 
     const rawCode = randomBytes(32).toString('hex');
@@ -40,6 +52,7 @@ export class AuthorizeUseCase {
       userId: input.userId,
       clientId: input.clientId,
       redirectUri: input.redirectUri,
+      codeChallenge: input.codeChallenge ?? null,
     });
     await this.authorizationCodeRepository.save(code);
 
