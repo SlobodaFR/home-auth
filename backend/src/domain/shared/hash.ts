@@ -53,3 +53,8 @@ export async function verifySecret(
   }
   return timingSafeEqual(candidate, expected);
 }
+
+/** PKCE S256 (RFC 7636): base64url(sha256(code_verifier)). */
+export function pkceS256(verifier: string): string {
+  return createHash('sha256').update(verifier).digest('base64url');
+}

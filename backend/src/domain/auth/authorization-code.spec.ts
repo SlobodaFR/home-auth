@@ -5,6 +5,7 @@ const baseProps = {
   userId: 'user-1',
   clientId: 'budget',
   redirectUri: 'https://budget.example.com/auth/callback',
+  codeChallenge: null,
 };
 
 describe('AuthorizationCode', () => {
@@ -32,7 +33,9 @@ describe('AuthorizationCode', () => {
       used: true,
     });
 
-    expect(() => code.redeem(new Date('2024-01-01T00:00:30Z'))).toThrow('Authorization code already used');
+    expect(() => code.redeem(new Date('2024-01-01T00:00:30Z'))).toThrow(
+      'Authorization code already used',
+    );
   });
 
   it('rejects redeeming an expired code', () => {
@@ -42,6 +45,43 @@ describe('AuthorizationCode', () => {
       used: false,
     });
 
-    expect(() => code.redeem(new Date('2024-01-01T00:01:01Z'))).toThrow('Authorization code expired');
+    expect(() => code.redeem(new Date('2024-01-01T00:01:01Z'))).toThrow(
+      'Authorization code expired',
+    );
+  });
+});
+
+describe('AuthorizationCode PKCE', () => {
+  const VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+  const CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
+  const issue = (codeChallenge?: string | null) =>
+    AuthorizationCode.issue({
+      codeHash: 'h',
+      userId: 'u',
+      clientId: 'c',
+      redirectUri: 'https://c/cb',
+      codeChallenge,
+    });
+
+  it('stores the challenge, or null without one', () => {
+    expect(issue(CHALLENGE).codeChallenge).toBe(CHALLENGE);
+    expect(issue().codeChallenge).toBeNull();
+  });
+
+  it('accepts the matching verifier only', () => {
+    expect(issue(CHALLENGE).matchesVerifier(VERIFIER)).toBe(true);
+    expect(issue(CHALLENGE).matchesVerifier(undefined)).toBe(false);
+    expect(issue(CHALLENGE).matchesVerifier(`${VERIFIER.slice(0, -1)}x`)).toBe(
+      false,
+    );
+  });
+
+  it('keeps codes without PKCE working when no verifier is sent', () => {
+    expect(issue().matchesVerifier(undefined)).toBe(true);
+  });
+
+  // RFC 9700 §4.8.1: a verifier without a challenge means the challenge was stripped (downgrade).
+  it('refuses a verifier for a code issued without challenge', () => {
+    expect(issue().matchesVerifier(VERIFIER)).toBe(false);
   });
 });

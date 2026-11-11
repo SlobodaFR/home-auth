@@ -1,5 +1,5 @@
 import { scryptSync } from 'crypto';
-import { hashSecret, hashToken, verifySecret } from './hash';
+import { hashSecret, hashToken, pkceS256, verifySecret } from './hash';
 
 describe('hashToken', () => {
   it('is deterministic', () => {
@@ -79,5 +79,13 @@ describe('hashSecret / verifySecret', () => {
     await hashSecret('s3cret').then(() => order.push('hashed'));
 
     expect(order).toEqual(['immediate', 'hashed']);
+  });
+});
+
+describe('pkceS256', () => {
+  it('matches the RFC 7636 appendix B test vector', () => {
+    expect(pkceS256('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk')).toBe(
+      'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+    );
   });
 });

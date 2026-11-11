@@ -1,3 +1,6 @@
+import { timingSafeEqual } from 'crypto';
+import { pkceS256 } from '../shared/hash';
+
 export interface AuthorizationCodeProps {
   codeHash: string;
   userId: string;
@@ -5,6 +8,8 @@ export interface AuthorizationCodeProps {
   redirectUri: string;
   expiresAt: Date;
   used: boolean;
+  /** PKCE S256 challenge sent to /authorize, or null when the client did not use PKCE. */
+  codeChallenge: string | null;
 }
 
 const TTL_MS = 60 * 1000;
@@ -16,7 +21,15 @@ const TTL_MS = 60 * 1000;
 export class AuthorizationCode {
   private constructor(private readonly props: AuthorizationCodeProps) {}
 
-  static issue(props: Omit<AuthorizationCodeProps, 'used' | 'expiresAt'> & { issuedAt?: Date }): AuthorizationCode {
+  static issue(
+    props: Omit<
+      AuthorizationCodeProps,
+      'used' | 'expiresAt' | 'codeChallenge'
+    > & {
+      issuedAt?: Date;
+      codeChallenge?: string | null;
+    },
+  ): AuthorizationCode {
     const issuedAt = props.issuedAt ?? new Date();
     return new AuthorizationCode({
       codeHash: props.codeHash,
@@ -25,6 +38,7 @@ export class AuthorizationCode {
       redirectUri: props.redirectUri,
       expiresAt: new Date(issuedAt.getTime() + TTL_MS),
       used: false,
+      codeChallenge: props.codeChallenge ?? null,
     });
   }
 
@@ -58,6 +72,28 @@ export class AuthorizationCode {
 
   isExpired(now: Date = new Date()): boolean {
     return now.getTime() > this.props.expiresAt.getTime();
+  }
+
+  get codeChallenge(): string | null {
+    return this.props.codeChallenge;
+  }
+
+  /**
+   * PKCE check. Without a challenge, only a request without verifier passes: a verifier for a
+   * code issued without challenge means the challenge was stripped (RFC 9700 §4.8.1).
+   */
+  matchesVerifier(verifier: string | undefined): boolean {
+    if (this.props.codeChallenge === null) {
+      return verifier === undefined;
+    }
+    if (verifier === undefined) {
+      return false;
+    }
+    const expected = Buffer.from(this.props.codeChallenge);
+    const actual = Buffer.from(pkceS256(verifier));
+    return (
+      expected.length === actual.length && timingSafeEqual(expected, actual)
+    );
   }
 
   /** Returns a used copy, or throws if the code cannot be redeemed. */

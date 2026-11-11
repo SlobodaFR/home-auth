@@ -19,4 +19,8 @@ export class AuthorizationCodeOrmEntity {
 
   @Column('boolean')
   used!: boolean;
+
+  // Nullable: rows from before PKCE support, and clients that do not use it.
+  @Column({ type: 'text', name: 'code_challenge', nullable: true })
+  codeChallenge!: string | null;
 }

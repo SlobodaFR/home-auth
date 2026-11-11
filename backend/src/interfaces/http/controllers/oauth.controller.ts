@@ -100,6 +100,7 @@ export class OAuthController {
         userId,
         clientId: query.client_id,
         redirectUri: query.redirect_uri,
+        codeChallenge: query.code_challenge,
       });
     } catch (error) {
       const reason =
@@ -140,6 +141,10 @@ export class OAuthController {
     );
     const redirectUrl = new URL(query.redirect_uri);
     redirectUrl.searchParams.set('code', code);
+    // Echoed verbatim for the client's CSRF check; never sent to telemetry (caller-supplied text).
+    if (query.state !== undefined) {
+      redirectUrl.searchParams.set('state', query.state);
+    }
     res.redirect(redirectUrl.toString());
   }
 
@@ -174,6 +179,7 @@ export class OAuthController {
         clientId: dto.client_id,
         clientSecret: dto.client_secret,
         redirectUri: dto.redirect_uri,
+        codeVerifier: dto.code_verifier,
       });
     }
 

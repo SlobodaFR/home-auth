@@ -62,8 +62,22 @@ Voir [`backend/.env.example`](backend/.env.example) pour la liste complète. Poi
 ### OAuth2 / OIDC
 
 - `GET /.well-known/jwks.json` — clé publique RS256 pour vérifier les JWT
-- `GET /authorize?client_id=&redirect_uri=&state=` — démarre le flow Authorization Code (nécessite une session SSO)
+- `GET /authorize?client_id=&redirect_uri=[&state=][&code_challenge=&code_challenge_method=S256]` — démarre le flow Authorization Code (nécessite une session SSO)
+  - `state` (optionnel, 512 caractères max) : renvoyé tel quel dans la redirection `?code=…&state=…`. Le client le vérifie au retour (CSRF).
+  - PKCE (optionnel, **S256 uniquement**) : `code_challenge` = base64url(sha256(`code_verifier`)). `plain`, une méthode sans challenge ou un challenge sans méthode → 400.
 - `POST /token` — échange `code` ou `refresh_token` contre un access token
+  - `code_verifier` : obligatoire si `/authorize` a reçu un `code_challenge`, refusé sinon (401 `Invalid authorization code`, sans consommer le code).
+
+Exemple de génération PKCE côté client (Node) :
+
+```js
+const verifier = crypto.randomBytes(32).toString('base64url');
+const challenge = crypto
+  .createHash('sha256')
+  .update(verifier)
+  .digest('base64url');
+```
+
 - `GET /userinfo` — infos de l'utilisateur courant (Bearer access token)
 
 ### SSO maison
