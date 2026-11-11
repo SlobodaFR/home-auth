@@ -6,12 +6,15 @@ import cookieParser from 'cookie-parser';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { buildCorsOptions } from './interfaces/http/cors';
+import { applySecurityHeaders } from './interfaces/http/security-headers';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });
   app.useLogger(app.get(Logger));
+  // First middleware: every response (API, SPA files, /docs) gets the security headers.
+  applySecurityHeaders(app);
   // Lets providers flush on SIGTERM (telemetry queue).
   app.enableShutdownHooks();
   // Number of reverse-proxy hops to trust for X-Forwarded-For (req.ip feeds
