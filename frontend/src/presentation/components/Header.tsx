@@ -1,5 +1,17 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+
+const NAV_LINKS = [
+  { to: '/', label: 'Mon profil', adminOnly: false },
+  { to: '/admin/users', label: 'Utilisateurs', adminOnly: true },
+  { to: '/admin/clients', label: 'Applications', adminOnly: true },
+];
+
+function navLinkClass({ isActive }: { isActive: boolean }) {
+  return `font-body-strong text-body-strong transition-colors ${
+    isActive ? 'text-ink' : 'text-mute hover:text-ink'
+  }`;
+}
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -9,6 +21,18 @@ export function Header() {
     await logout();
     navigate('/login');
   }
+
+  const links = NAV_LINKS.filter((link) => !link.adminOnly || user?.isAdmin);
+  const renderLink = (link: (typeof NAV_LINKS)[number]) => (
+    <NavLink
+      key={link.to}
+      to={link.to}
+      end={link.to === '/'}
+      className={navLinkClass}
+    >
+      {link.label}
+    </NavLink>
+  );
 
   return (
     <header className="sticky top-0 z-50 bg-canvas border-b border-hairline">
@@ -20,34 +44,18 @@ export function Header() {
           >
             Auth Service
           </Link>
-          <nav className="hidden md:flex items-center gap-lg h-full">
-            <Link
-              to="/"
-              className="font-body-strong text-body-strong text-mute hover:text-ink transition-colors"
-            >
-              Mon profil
-            </Link>
-            {user?.isAdmin && (
-              <Link
-                to="/admin/users"
-                className="font-body-strong text-body-strong text-mute hover:text-ink transition-colors"
-              >
-                Utilisateurs
-              </Link>
-            )}
-            {user?.isAdmin && (
-              <Link
-                to="/admin/clients"
-                className="font-body-strong text-body-strong text-mute hover:text-ink transition-colors"
-              >
-                Applications
-              </Link>
-            )}
+          <nav
+            aria-label="Navigation principale"
+            className="hidden md:flex items-center gap-lg h-full"
+          >
+            {links.map(renderLink)}
           </nav>
         </div>
         {user && (
           <div className="flex items-center gap-md">
-            <span className="hidden sm:inline font-caption text-caption text-mute">{user.email}</span>
+            <span className="hidden sm:inline font-caption text-caption text-mute">
+              {user.email}
+            </span>
             <img
               src={user.avatarUrl}
               alt={user.name}
@@ -64,6 +72,14 @@ export function Header() {
           </div>
         )}
       </div>
+      {user && (
+        <nav
+          aria-label="Navigation principale"
+          className="md:hidden flex items-center gap-lg h-12 px-margin-mobile overflow-x-auto whitespace-nowrap border-t border-hairline"
+        >
+          {links.map(renderLink)}
+        </nav>
+      )}
     </header>
   );
 }
