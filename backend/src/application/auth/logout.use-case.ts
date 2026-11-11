@@ -19,16 +19,31 @@ export class LogoutUseCase {
 
     await this.refreshTokenRepository.deleteAllForUser(userId);
 
-    for (const clientId of clientIds) {
-      const client = await this.clientRepository.findById(clientId);
+    const clients = await Promise.all(
+      clientIds.map((clientId) => this.clientRepository.findById(clientId)),
+    );
+
+    // Never block the logout on client apps (CLAUDE.md): all webhooks start at once and the
+    // response does not wait for them. Each failure is logged by client, without the user id.
+    for (const client of clients) {
       if (!client?.logoutWebhookUrl) {
         continue;
       }
+      let delivery: Promise<void>;
       try {
-        await this.webhookNotifier.notify(client.logoutWebhookUrl, { userId });
-      } catch (error) {
-        this.logger.warn(`Logout webhook for client ${clientId} failed: ${String(error)}`);
+        delivery = this.webhookNotifier.notify(client.logoutWebhookUrl, {
+          userId,
+        });
+      } catch (error: unknown) {
+        delivery = Promise.reject(
+          error instanceof Error ? error : new Error('unknown error'),
+        );
       }
+      delivery.catch((error: unknown) => {
+        this.logger.warn(
+          `Logout webhook for client ${client.id} failed: ${String(error)}`,
+        );
+      });
     }
   }
 }
