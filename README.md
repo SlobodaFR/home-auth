@@ -69,7 +69,7 @@ npm run migration:show --workspace=backend
 
 Chaque migration est relue, puis ajoutée à `MIGRATIONS` (`backend/src/infrastructure/persistence/migrations/index.ts`).
 
-Ces commandes tournent en local, sur le code compilé (`nest build`), avec `DATABASE_PATH` pointant sur la base visée : l'image de production ne contient ni les sources ni les outils de dev. Au démarrage, le service refuse de démarrer si, après les migrations, le schéma diffère des entités.
+Ces commandes tournent en local, sur le code compilé (`tsc`), avec `DATABASE_PATH` pointant sur la base visée : l'image de production ne contient ni les sources ni les outils de dev. Au démarrage, le service refuse de démarrer si, après les migrations, le schéma diffère des entités.
 
 ## API
 

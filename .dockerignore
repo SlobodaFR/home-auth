@@ -8,3 +8,4 @@ coverage
 .git
 .env
 **/.env
+*.tsbuildinfo
