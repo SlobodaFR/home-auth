@@ -7,6 +7,7 @@ import { ClientOrmEntity } from './entities/client.orm-entity';
 import { MagicLinkTokenOrmEntity } from './entities/magic-link-token.orm-entity';
 import { RefreshTokenOrmEntity } from './entities/refresh-token.orm-entity';
 import { UserOrmEntity } from './entities/user.orm-entity';
+import { SLOW_QUERY_THRESHOLD_MS, SlowQueryLogger } from './slow-query.logger';
 
 @Module({
   imports: [
@@ -18,6 +19,8 @@ import { UserOrmEntity } from './entities/user.orm-entity';
         database: config.get<string>('DATABASE_PATH', 'data/auth.sqlite'),
         // WAL mode is required for Litestream replication.
         enableWAL: true,
+        maxQueryExecutionTime: SLOW_QUERY_THRESHOLD_MS,
+        logger: new SlowQueryLogger(),
         entities: [
           UserOrmEntity,
           ClientOrmEntity,

@@ -55,5 +55,8 @@ USER node
 VOLUME ["/app/backend/data"]
 WORKDIR /app/backend
 EXPOSE 3000
+# curl is purged from the image: use Node's fetch.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["node", "-e", "fetch('http://127.0.0.1:3000/healthz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "dist/main.js"]

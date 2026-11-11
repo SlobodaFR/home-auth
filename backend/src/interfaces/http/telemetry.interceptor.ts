@@ -10,8 +10,8 @@ import { Observable, tap } from 'rxjs';
 import { Telemetry } from '../../domain/shared/telemetry';
 import { routeOf } from './route-of';
 
-/** Polled by client apps: high volume, no debugging value. */
-const UNREPORTED_ROUTES = new Set(['/.well-known/jwks.json']);
+/** Polled (client apps, Docker healthcheck): high volume, no debugging value. */
+const UNREPORTED_ROUTES = new Set(['/.well-known/jwks.json', '/healthz']);
 
 /** Reports every request handled by a Nest route (http_request); 5xx details come from ServerErrorTelemetryFilter. */
 @Injectable()

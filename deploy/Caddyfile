@@ -3,5 +3,7 @@
 # (TRUST_PROXY_HOPS=1) pour son rate limit ; ne pas ajouter de proxy devant
 # sans ajuster cette valeur.
 auth.sloboda.fr {
+    # Interne : etat du service, lisible seulement depuis le VPS (curl 127.0.0.1:3000/healthz).
+    respond /healthz 404
     reverse_proxy 127.0.0.1:3000
 }

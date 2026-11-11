@@ -29,6 +29,17 @@ export type TelemetryEvent =
         grant_type: 'authorization_code' | 'refresh_token';
       };
     }
+  | {
+      name: 'runtime_health';
+      properties: {
+        lag_p50_ms: number;
+        lag_p99_ms: number;
+        lag_max_ms: number;
+        elu: number;
+        heap_used_mb: number;
+        rss_mb: number;
+      };
+    }
   | { name: 'rate_limited'; properties: { route: string } }
   | { name: 'server_error'; properties: { route: string; error_name: string } }
   | {
