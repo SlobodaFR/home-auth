@@ -16,8 +16,9 @@ export class UpdateUserUseCase {
   constructor(private readonly userRepository: UserRepository) {}
 
   /**
-   * @param actorId the admin making the change. An admin cannot remove their own admin role:
-   * since only admins can demote, this also guarantees at least one admin always remains.
+   * @param actorId the admin making the change. An admin cannot remove their own admin role: since
+   * only admins can demote, at least one admin remains under sequential use (two admins demoting
+   * each other concurrently is not prevented).
    */
   async execute(
     actorId: string,
