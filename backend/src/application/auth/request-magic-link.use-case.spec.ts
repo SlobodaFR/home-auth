@@ -1,4 +1,6 @@
+import { Logger } from '@nestjs/common';
 import { MagicLinkToken } from '../../domain/auth/magic-link-token';
+import { pseudonymize } from '../../domain/shared/pseudonymize';
 import { User } from '../../domain/user/user';
 import {
   FakeConfigService,
@@ -8,7 +10,10 @@ import {
 } from '../test/in-memory-repositories';
 import { RequestMagicLinkUseCase } from './request-magic-link.use-case';
 
-function createUseCase(config: Record<string, string> = {}) {
+const PSEUDONYM_SECRET = 'p'.repeat(64);
+
+function createUseCase(overrides: Record<string, string> = {}) {
+  const config = { PSEUDONYM_SECRET, ...overrides };
   const userRepository = new InMemoryUserRepository();
   const magicLinkTokenRepository = new InMemoryMagicLinkTokenRepository();
   const emailSender = new FakeEmailSender();
@@ -39,6 +44,20 @@ describe('RequestMagicLinkUseCase', () => {
 
     expect(emailSender.sent).toHaveLength(1);
     expect(emailSender.sent[0]?.to).toBe('alice@example.com');
+  });
+
+  it('logs an unknown email only as its pseudonym', async () => {
+    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    const { useCase } = createUseCase();
+
+    await useCase.execute('Unknown@Example.com');
+
+    const logged = JSON.stringify(log.mock.calls);
+    expect(logged.toLowerCase()).not.toContain('unknown@example.com');
+    expect(logged).toContain(
+      pseudonymize('unknown@example.com', PSEUDONYM_SECRET),
+    );
+    log.mockRestore();
   });
 
   it('does not send a link or create a user for an unknown email', async () => {

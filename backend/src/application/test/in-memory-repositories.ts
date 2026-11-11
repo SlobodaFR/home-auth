@@ -271,4 +271,12 @@ export class FakeConfigService {
   get<T = string>(key: string, defaultValue?: T): T | undefined {
     return (this.values[key] as T | undefined) ?? defaultValue;
   }
+
+  getOrThrow(key: string): string {
+    const value = this.values[key] as string | undefined;
+    if (value === undefined) {
+      throw new TypeError(`Configuration key "${key}" does not exist`);
+    }
+    return value;
+  }
 }

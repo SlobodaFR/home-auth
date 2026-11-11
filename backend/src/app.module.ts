@@ -4,7 +4,10 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
+import { validateEnv } from './infrastructure/config/validate-env';
 import { CoreModule } from './infrastructure/core.module';
+import { loggerParams } from './infrastructure/logging/logger.config';
 import { DatabaseModule } from './infrastructure/persistence/database.module';
 import { AdminModule } from './interfaces/http/modules/admin.module';
 import { AuthModule } from './interfaces/http/modules/auth.module';
@@ -31,7 +34,9 @@ const API_ROUTES = [
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    // Must stay after ConfigModule: it loads .env into process.env synchronously.
+    LoggerModule.forRoot(loggerParams(process.env.NODE_ENV)),
     ThrottlerModule.forRoot(throttlerOptions),
     DatabaseModule,
     CoreModule,

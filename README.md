@@ -40,15 +40,16 @@ npm run build         # build frontend puis backend (copie le frontend dans back
 
 Voir [`backend/.env.example`](backend/.env.example) pour la liste complète. Points clés :
 
-| Variable | Rôle |
-| --- | --- |
-| `ADMIN_EMAIL` | Email de l'administrateur initial (bootstrap si `users` est vide) |
-| `AUTH_BASE_URL` | URL publique du service (liens magiques, audience JWT, JWKS) |
-| `FRONTEND_URL` | URL du frontend (CORS) |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Envoi des liens magiques par email |
-| `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY` | Paire RSA pour signer les JWT (générée et persistée si absente) |
-| `DATABASE_PATH` | Chemin du fichier SQLite |
-| `MINIO_*`, `AVATARS_PREFIX` | Réplication Litestream + stockage des avatars sur MinIO |
+| Variable                            | Rôle                                                                                                                                           |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ADMIN_EMAIL`                       | Email de l'administrateur initial (bootstrap si `users` est vide)                                                                              |
+| `AUTH_BASE_URL`                     | URL publique du service (liens magiques, audience JWT, JWKS)                                                                                   |
+| `FRONTEND_URL`                      | URL du frontend (CORS)                                                                                                                         |
+| `RESEND_API_KEY`, `EMAIL_FROM`      | Envoi des liens magiques par email                                                                                                             |
+| `PSEUDONYM_SECRET`                  | Obligatoire en production (≥ 32 octets, `openssl rand -hex 32`) : pseudonymes des emails dans les logs. Le changer re-clé tous les pseudonymes |
+| `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY` | Paire RSA pour signer les JWT (générée et persistée si absente)                                                                                |
+| `DATABASE_PATH`                     | Chemin du fichier SQLite                                                                                                                       |
+| `MINIO_*`, `AVATARS_PREFIX`         | Réplication Litestream + stockage des avatars sur MinIO                                                                                        |
 
 ## API
 

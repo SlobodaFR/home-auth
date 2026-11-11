@@ -3,10 +3,14 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
+  app.useLogger(app.get(Logger));
   // Number of reverse-proxy hops to trust for X-Forwarded-For (req.ip feeds
   // the rate limit). Production: 1 (Caddy, which drops client-sent
   // X-Forwarded-For since no trusted_proxies is configured). Unset in local

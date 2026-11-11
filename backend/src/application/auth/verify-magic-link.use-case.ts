@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { MagicLinkTokenRepository } from '../../domain/auth/magic-link-token.repository';
 import { SessionService } from '../../domain/auth/session.service';
 import { hashToken } from '../../domain/shared/hash';
@@ -19,7 +23,8 @@ export class VerifyMagicLinkUseCase {
 
   async execute(rawToken: string): Promise<VerifyMagicLinkResult> {
     const tokenHash = hashToken(rawToken);
-    const magicLinkToken = await this.magicLinkTokenRepository.findByTokenHash(tokenHash);
+    const magicLinkToken =
+      await this.magicLinkTokenRepository.findByTokenHash(tokenHash);
     if (!magicLinkToken) {
       throw new UnauthorizedException('Lien de connexion invalide');
     }
@@ -28,13 +33,15 @@ export class VerifyMagicLinkUseCase {
     try {
       consumed = magicLinkToken.consume();
     } catch (error) {
-      throw new UnauthorizedException(error instanceof Error ? error.message : 'Lien de connexion invalide');
+      throw new UnauthorizedException(
+        error instanceof Error ? error.message : 'Lien de connexion invalide',
+      );
     }
     await this.magicLinkTokenRepository.save(consumed);
 
     const user = await this.userRepository.findByEmail(consumed.email);
     if (!user) {
-      throw new NotFoundException(`User ${consumed.email} not found`);
+      throw new NotFoundException('User not found');
     }
 
     const sessionToken = await this.sessionService.sign(user.id);
