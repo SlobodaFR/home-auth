@@ -11,7 +11,7 @@
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "types": ["node", "jest", "multer"],
+    "types": ["node", "vitest/globals", "multer"],
     "incremental": true,
     "skipLibCheck": true,
     "strict": true,

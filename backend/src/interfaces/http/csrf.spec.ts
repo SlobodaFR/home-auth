@@ -6,23 +6,26 @@ import request from 'supertest';
 import { InviteUserUseCase } from '../../application/admin/invite-user.use-case';
 import { ListUsersUseCase } from '../../application/admin/list-users.use-case';
 import { UpdateUserUseCase } from '../../application/admin/update-user.use-case';
+import { User } from '../../domain/user/user';
 import { AdminUsersController } from './controllers/admin-users.controller';
 import { AdminGuard } from './guards/admin.guard';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 
 describe('CSRF protection on admin routes (HTTP)', () => {
   let app: NestExpressApplication;
-  const invite = jest.fn();
+  const invite = vi.fn<InviteUserUseCase['execute']>();
 
   beforeEach(async () => {
-    invite.mockReset().mockResolvedValue({
-      id: 'u2',
-      email: 'a@b.c',
-      name: 'x',
-      avatarKey: null,
-      isAdmin: false,
-      createdAt: new Date(),
-    });
+    invite.mockReset().mockResolvedValue(
+      User.create({
+        id: 'u2',
+        email: 'alice@example.com',
+        name: 'Alice',
+        avatarKey: null,
+        isAdmin: false,
+        createdAt: new Date(),
+      }),
+    );
     const moduleRef = await Test.createTestingModule({
       controllers: [AdminUsersController],
       providers: [

@@ -137,7 +137,7 @@ describe('LogoutUseCase', () => {
         createdAt: new Date(),
       }),
     );
-    jest.spyOn(webhookNotifier, 'notify').mockRejectedValue(new Error('boom'));
+    vi.spyOn(webhookNotifier, 'notify').mockRejectedValue(new Error('boom'));
 
     await expect(useCase.execute('user-1')).resolves.toBeUndefined();
   });
@@ -150,7 +150,9 @@ describe('LogoutUseCase', () => {
       clientRepository,
       webhookNotifier,
     } = createUseCase();
-    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const warn = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
     for (const id of ['slow', 'broken']) {
       await clientRepository.save(
         Client.create({
@@ -173,7 +175,7 @@ describe('LogoutUseCase', () => {
       );
     }
     const notified: string[] = [];
-    jest.spyOn(webhookNotifier, 'notify').mockImplementation((url: string) => {
+    vi.spyOn(webhookNotifier, 'notify').mockImplementation((url: string) => {
       notified.push(url);
       return url.includes('slow')
         ? new Promise(() => undefined)

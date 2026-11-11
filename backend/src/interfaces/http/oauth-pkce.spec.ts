@@ -22,8 +22,10 @@ const REDIRECT = 'https://budget.example.com/cb';
 
 describe('OAuth state and PKCE (HTTP)', () => {
   let app: NestExpressApplication;
-  const authorize = jest.fn().mockResolvedValue('the-code');
-  const exchange = jest.fn().mockResolvedValue({
+  const authorize = vi
+    .fn<AuthorizeUseCase['execute']>()
+    .mockResolvedValue('the-code');
+  const exchange = vi.fn<ExchangeCodeUseCase['execute']>().mockResolvedValue({
     accessToken: 'a',
     refreshToken: 'r',
     tokenType: 'Bearer',

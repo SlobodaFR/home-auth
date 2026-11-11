@@ -26,11 +26,24 @@ describe('Rate limiting (HTTP)', () => {
         { provide: APP_GUARD, useClass: ThrottlerGuard },
         {
           provide: RequestMagicLinkUseCase,
-          useValue: { execute: jest.fn().mockResolvedValue(undefined) },
+          useValue: {
+            execute: vi
+              .fn<RequestMagicLinkUseCase['execute']>()
+              .mockResolvedValue(undefined),
+          },
         },
-        { provide: VerifyMagicLinkUseCase, useValue: { execute: jest.fn() } },
-        { provide: LogoutUseCase, useValue: { execute: jest.fn() } },
-        { provide: ConfigService, useValue: { get: jest.fn() } },
+        {
+          provide: VerifyMagicLinkUseCase,
+          useValue: { execute: vi.fn<VerifyMagicLinkUseCase['execute']>() },
+        },
+        {
+          provide: LogoutUseCase,
+          useValue: { execute: vi.fn<LogoutUseCase['execute']>() },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: vi.fn<(key: string) => unknown>() },
+        },
         { provide: SessionService, useValue: {} },
         { provide: UserRepository, useValue: {} },
       ],

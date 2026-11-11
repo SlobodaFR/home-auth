@@ -35,7 +35,9 @@ function createController(options: {
     cookies: { auth_session: 'jwt' },
     originalUrl: '/authorize?client_id=budget',
   } as unknown as Request;
-  const res = { redirect: jest.fn() } as unknown as Response;
+  const res = {
+    redirect: vi.fn<(url: string) => void>(),
+  } as unknown as Response;
   return { controller, telemetry, req, res };
 }
 

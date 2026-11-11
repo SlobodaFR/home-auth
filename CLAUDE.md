@@ -42,7 +42,7 @@ frontend/src/
 - Tout nouveau comportement (domaine + application) commence par un test qui échoue.
 - `domain/` et `application/` : couverture quasi totale attendue, tests rapides (pas de DB/réseau).
 - `infrastructure/` : tests d'intégration ciblés (TypeORM avec SQLite en mémoire, mocks MinIO/Resend).
-- Commande: `npm test` (backend Jest + frontend Vitest), `npm run test:backend`, `npm run test:frontend`.
+- Commande: `npm test` (Vitest, backend et frontend), `npm run test:backend`, `npm run test:frontend`.
 
 ## Qualité de code
 

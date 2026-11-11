@@ -23,7 +23,9 @@ const PNG = Buffer.from([
 
 describe('POST /profile/avatar (upload limits)', () => {
   let app: NestExpressApplication;
-  const execute = jest.fn().mockResolvedValue(undefined);
+  const execute = vi
+    .fn<(userId: string, body: Buffer) => Promise<void>>()
+    .mockResolvedValue(undefined);
 
   beforeEach(async () => {
     execute.mockClear();

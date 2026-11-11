@@ -1,3 +1,4 @@
+import type { MockInstance } from 'vitest';
 import { Logger } from '@nestjs/common';
 import { FakeTelemetry } from '../../application/test/in-memory-repositories';
 import { RuntimeHealthMonitor } from './runtime-health.monitor';
@@ -14,12 +15,14 @@ const tick = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 describe('RuntimeHealthMonitor', () => {
   let telemetry: FakeTelemetry;
   let monitor: RuntimeHealthMonitor;
-  let warn: jest.SpyInstance;
+  let warn: MockInstance;
 
   beforeEach(() => {
     telemetry = new FakeTelemetry();
     monitor = new RuntimeHealthMonitor(telemetry);
-    warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    warn = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
     monitor.start();
   });
 

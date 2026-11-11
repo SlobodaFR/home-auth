@@ -1,3 +1,4 @@
+import type { MockInstance } from 'vitest';
 import { Logger } from '@nestjs/common';
 import { DataSource, Logger as TypeOrmLogger } from 'typeorm';
 import { SLOW_QUERY_THRESHOLD_MS, SlowQueryLogger } from './slow-query.logger';
@@ -6,17 +7,21 @@ import { SLOW_QUERY_THRESHOLD_MS, SlowQueryLogger } from './slow-query.logger';
 const sqlLogger = (): TypeOrmLogger => new SlowQueryLogger();
 
 describe('SlowQueryLogger', () => {
-  let warn: jest.SpyInstance;
-  let error: jest.SpyInstance;
-  let log: jest.SpyInstance;
+  let warn: MockInstance;
+  let error: MockInstance;
+  let log: MockInstance;
 
   beforeEach(() => {
-    warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
-    error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
-    log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    warn = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    error = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    log = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it('logs a slow query with its duration and SQL, never its parameters', () => {
     sqlLogger().logQuerySlow(42, 'SELECT * FROM users WHERE email = ?', [
