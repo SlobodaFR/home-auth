@@ -25,6 +25,7 @@ import {
 } from '../../../application/profile/get-user-info.use-case';
 import { UpdateProfileUseCase } from '../../../application/profile/update-profile.use-case';
 import { UploadAvatarUseCase } from '../../../application/profile/upload-avatar.use-case';
+import { MAX_AVATAR_BYTES } from '../../../domain/shared/image-type';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { SessionAuthGuard, SessionUser } from '../guards/session-auth.guard';
@@ -61,7 +62,12 @@ export class ProfileController {
 
   @Post('avatar')
   @HttpCode(204)
-  @UseInterceptors(FileInterceptor('avatar'))
+  // Multer stops reading past the limit (413) instead of buffering an unbounded body in memory.
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      limits: { fileSize: MAX_AVATAR_BYTES, files: 1, fields: 0 },
+    }),
+  )
   @ApiOperation({ summary: 'Upload a new avatar image' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -78,9 +84,6 @@ export class ProfileController {
     if (!file) {
       throw new BadRequestException('Avatar file is required');
     }
-    await this.uploadAvatar.execute(user.id, {
-      contentType: file.mimetype,
-      body: file.buffer,
-    });
+    await this.uploadAvatar.execute(user.id, file.buffer);
   }
 }

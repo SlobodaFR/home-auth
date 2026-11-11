@@ -1,9 +1,14 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { AvatarStorage, StoredAvatar } from '../../domain/shared/avatar-storage';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { AvatarStorage } from '../../domain/shared/avatar-storage';
+import {
+  detectImageType,
+  MAX_AVATAR_BYTES,
+} from '../../domain/shared/image-type';
 import { UserRepository } from '../../domain/user/user.repository';
-
-const ALLOWED_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-const MAX_SIZE_BYTES = 2 * 1024 * 1024;
 
 @Injectable()
 export class UploadAvatarUseCase {
@@ -12,20 +17,25 @@ export class UploadAvatarUseCase {
     private readonly avatarStorage: AvatarStorage,
   ) {}
 
-  async execute(userId: string, avatar: StoredAvatar): Promise<void> {
+  async execute(userId: string, body: Buffer): Promise<void> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundException(`User ${userId} not found`);
     }
 
-    if (!ALLOWED_CONTENT_TYPES.has(avatar.contentType)) {
+    // From the content, never the client-declared type: HTML sent as image/png must not pass.
+    const contentType = detectImageType(body);
+    if (!contentType) {
       throw new BadRequestException('Avatar must be a JPEG, PNG or WebP image');
     }
-    if (avatar.body.byteLength > MAX_SIZE_BYTES) {
+    if (body.byteLength > MAX_AVATAR_BYTES) {
       throw new BadRequestException('Avatar must not exceed 2MB');
     }
 
-    const avatarKey = await this.avatarStorage.upload(userId, avatar);
+    const avatarKey = await this.avatarStorage.upload(userId, {
+      body,
+      contentType,
+    });
     await this.userRepository.save(user.withAvatarKey(avatarKey));
   }
 }

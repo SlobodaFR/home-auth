@@ -3,6 +3,7 @@ import {
   AvatarStorage,
   StoredAvatar,
 } from '../../domain/shared/avatar-storage';
+import { detectImageType } from '../../domain/shared/image-type';
 import { UserRepository } from '../../domain/user/user.repository';
 
 export type AvatarResult =
@@ -24,8 +25,10 @@ export class GetAvatarUseCase {
 
     if (user.avatarKey) {
       const avatar = await this.avatarStorage.get(user.avatarKey);
-      if (avatar) {
-        return { kind: 'stored', avatar };
+      // The detected type wins over the stored one; anything else is never served.
+      const contentType = avatar ? detectImageType(avatar.body) : null;
+      if (avatar && contentType) {
+        return { kind: 'stored', avatar: { body: avatar.body, contentType } };
       }
     }
 

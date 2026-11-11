@@ -1,6 +1,13 @@
 import { User } from '../../domain/user/user';
-import { FakeAvatarStorage, InMemoryUserRepository } from '../test/in-memory-repositories';
+import {
+  FakeAvatarStorage,
+  InMemoryUserRepository,
+} from '../test/in-memory-repositories';
 import { UploadAvatarUseCase } from './upload-avatar.use-case';
+
+const PNG = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01,
+]);
 
 describe('UploadAvatarUseCase', () => {
   function createUseCase() {
@@ -27,18 +34,33 @@ describe('UploadAvatarUseCase', () => {
     const { useCase, userRepository } = createUseCase();
     await seedUser(userRepository);
 
-    await useCase.execute('user-1', { contentType: 'image/png', body: Buffer.from('image') });
+    await useCase.execute('user-1', PNG);
 
-    expect((await userRepository.findById('user-1'))?.avatarKey).toBe('auth-avatars/test/user-1');
+    expect((await userRepository.findById('user-1'))?.avatarKey).toBe(
+      'auth-avatars/test/user-1',
+    );
   });
 
-  it('rejects an unsupported content type', async () => {
-    const { useCase, userRepository } = createUseCase();
+  // The type comes from the content, not from what the client declared.
+  it('stores the detected image type', async () => {
+    const { useCase, userRepository, avatarStorage } = createUseCase();
+    await seedUser(userRepository);
+
+    await useCase.execute('user-1', PNG);
+
+    expect(
+      (await avatarStorage.get('auth-avatars/test/user-1'))?.contentType,
+    ).toBe('image/png');
+  });
+
+  it('rejects content that is not a JPEG, PNG or WebP image, and stores nothing', async () => {
+    const { useCase, userRepository, avatarStorage } = createUseCase();
     await seedUser(userRepository);
 
     await expect(
-      useCase.execute('user-1', { contentType: 'image/gif', body: Buffer.from('image') }),
+      useCase.execute('user-1', Buffer.from('<html><script>x</script>')),
     ).rejects.toThrow('Avatar must be a JPEG, PNG or WebP image');
+    expect(await avatarStorage.get('auth-avatars/test/user-1')).toBeNull();
   });
 
   it('rejects an avatar over 2MB', async () => {
@@ -46,7 +68,10 @@ describe('UploadAvatarUseCase', () => {
     await seedUser(userRepository);
 
     await expect(
-      useCase.execute('user-1', { contentType: 'image/png', body: Buffer.alloc(2 * 1024 * 1024 + 1) }),
+      useCase.execute(
+        'user-1',
+        Buffer.concat([PNG, Buffer.alloc(2 * 1024 * 1024)]),
+      ),
     ).rejects.toThrow('Avatar must not exceed 2MB');
   });
 });
