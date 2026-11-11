@@ -11,6 +11,8 @@ async function bootstrap(): Promise<void> {
     bufferLogs: true,
   });
   app.useLogger(app.get(Logger));
+  // Lets providers flush on SIGTERM (telemetry queue).
+  app.enableShutdownHooks();
   // Number of reverse-proxy hops to trust for X-Forwarded-For (req.ip feeds
   // the rate limit). Production: 1 (Caddy, which drops client-sent
   // X-Forwarded-For since no trusted_proxies is configured). Unset in local

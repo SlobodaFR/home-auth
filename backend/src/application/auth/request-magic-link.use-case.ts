@@ -6,6 +6,7 @@ import { MagicLinkTokenRepository } from '../../domain/auth/magic-link-token.rep
 import { EmailSender } from '../../domain/shared/email-sender';
 import { hashToken } from '../../domain/shared/hash';
 import { pseudonymize } from '../../domain/shared/pseudonymize';
+import { Telemetry } from '../../domain/shared/telemetry';
 import { User } from '../../domain/user/user';
 import { UserRepository } from '../../domain/user/user.repository';
 import { buildMagicLinkEmailHtml } from '../../infrastructure/email/templates/magic-link-email.template';
@@ -28,6 +29,7 @@ export class RequestMagicLinkUseCase {
     private readonly magicLinkTokenRepository: MagicLinkTokenRepository,
     private readonly emailSender: EmailSender,
     private readonly config: ConfigService,
+    private readonly telemetry: Telemetry,
   ) {}
 
   async execute(rawEmail: string, redirect?: string): Promise<void> {
@@ -37,6 +39,10 @@ export class RequestMagicLinkUseCase {
     if (!user) {
       user = await this.bootstrapAdminIfEligible(email);
       if (!user) {
+        this.telemetry.capture({
+          name: 'magic_link_requested',
+          properties: { outcome: 'unknown' },
+        });
         const pid = pseudonymize(
           email,
           this.config.getOrThrow<string>('PSEUDONYM_SECRET'),
@@ -58,8 +64,20 @@ export class RequestMagicLinkUseCase {
       this.logger.warn(
         'Magic link budget exhausted for a user; ignoring request',
       );
+      this.telemetry.capture(
+        {
+          name: 'magic_link_requested',
+          properties: { outcome: 'budget_exhausted' },
+        },
+        user.id,
+      );
       return;
     }
+
+    this.telemetry.capture(
+      { name: 'magic_link_requested', properties: { outcome: 'sent' } },
+      user.id,
+    );
 
     const rawToken = randomBytes(32).toString('hex');
     const magicLinkToken = MagicLinkToken.issue({

@@ -21,6 +21,7 @@ import {
   StoredAvatar,
 } from '../../domain/shared/avatar-storage';
 import { EmailMessage, EmailSender } from '../../domain/shared/email-sender';
+import { Telemetry, TelemetryEvent } from '../../domain/shared/telemetry';
 import { WebhookNotifier } from '../../domain/shared/webhook-notifier';
 import { User } from '../../domain/user/user';
 import { UserRepository } from '../../domain/user/user.repository';
@@ -278,5 +279,17 @@ export class FakeConfigService {
       throw new TypeError(`Configuration key "${key}" does not exist`);
     }
     return value;
+  }
+}
+
+export class FakeTelemetry extends Telemetry {
+  readonly captured: { event: TelemetryEvent; userId?: string }[] = [];
+
+  capture(event: TelemetryEvent, userId?: string): void {
+    this.captured.push({ event, userId });
+  }
+
+  names(): string[] {
+    return this.captured.map(({ event }) => event.name);
   }
 }

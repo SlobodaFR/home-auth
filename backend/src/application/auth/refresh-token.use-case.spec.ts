@@ -4,6 +4,7 @@ import { Client } from '../../domain/client/client';
 import { hashSecret, hashToken } from '../../domain/shared/hash';
 import { User } from '../../domain/user/user';
 import {
+  FakeTelemetry,
   FakeTokenService,
   InMemoryClientRepository,
   InMemoryRefreshTokenRepository,
@@ -20,14 +21,17 @@ describe('RefreshTokenUseCase', () => {
     const refreshTokenRepository = new InMemoryRefreshTokenRepository();
     const userRepository = new InMemoryUserRepository();
     const tokenService = new FakeTokenService();
+    const telemetry = new FakeTelemetry();
     const useCase = new RefreshTokenUseCase(
       clientRepository,
       refreshTokenRepository,
       userRepository,
       tokenService,
+      telemetry,
     );
     return {
       useCase,
+      telemetry,
       clientRepository,
       refreshTokenRepository,
       userRepository,
@@ -76,6 +80,27 @@ describe('RefreshTokenUseCase', () => {
         });
     await deps.refreshTokenRepository.save(token);
   }
+
+  it('reports the exchange with the client and grant type', async () => {
+    const deps = createUseCase();
+    await seed(deps);
+
+    await deps.useCase.execute({
+      refreshToken: RAW_REFRESH_TOKEN,
+      clientId: 'budget',
+      clientSecret: RAW_SECRET,
+    });
+
+    expect(deps.telemetry.captured).toEqual([
+      {
+        event: {
+          name: 'token_exchanged',
+          properties: { client_id: 'budget', grant_type: 'refresh_token' },
+        },
+        userId: 'user-1',
+      },
+    ]);
+  });
 
   it('rotates the refresh token and issues a new access token', async () => {
     const deps = createUseCase();

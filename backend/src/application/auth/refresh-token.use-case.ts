@@ -12,6 +12,7 @@ import {
 } from '../../domain/auth/token.service';
 import { ClientRepository } from '../../domain/client/client.repository';
 import { hashToken, verifySecret } from '../../domain/shared/hash';
+import { Telemetry } from '../../domain/shared/telemetry';
 import { UserRepository } from '../../domain/user/user.repository';
 import { TokenPair } from './exchange-code.use-case';
 
@@ -28,6 +29,7 @@ export class RefreshTokenUseCase {
     private readonly refreshTokenRepository: RefreshTokenRepository,
     private readonly userRepository: UserRepository,
     private readonly tokenService: TokenService,
+    private readonly telemetry: Telemetry,
   ) {}
 
   async execute(input: RefreshTokenInput): Promise<TokenPair> {
@@ -73,6 +75,14 @@ export class RefreshTokenUseCase {
       isAdmin: user.isAdmin,
       aud: client.id,
     });
+
+    this.telemetry.capture(
+      {
+        name: 'token_exchanged',
+        properties: { client_id: client.id, grant_type: 'refresh_token' },
+      },
+      user.id,
+    );
 
     return {
       accessToken,
