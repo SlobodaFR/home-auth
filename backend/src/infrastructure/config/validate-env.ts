@@ -18,6 +18,10 @@ export function validateEnv(
   if (!production) {
     return { ...env, PSEUDONYM_SECRET: secret || DEV_PSEUDONYM_SECRET };
   }
+  // Public URLs: magic links, JWT audience, /login and /error redirects, CORS.
+  for (const variable of ['AUTH_BASE_URL', 'FRONTEND_URL']) {
+    assertHttpsUrl(env[variable], variable);
+  }
   if (
     Buffer.byteLength(secret, 'utf8') < MIN_SECRET_BYTES ||
     secret === DEV_PSEUDONYM_SECRET
@@ -27,4 +31,16 @@ export function validateEnv(
     );
   }
   return env;
+}
+
+function assertHttpsUrl(value: unknown, variable: string): void {
+  let url: URL | null = null;
+  try {
+    url = typeof value === 'string' ? new URL(value) : null;
+  } catch {
+    url = null;
+  }
+  if (url?.protocol !== 'https:') {
+    throw new Error(`${variable} must be set in production to an https:// URL`);
+  }
 }
