@@ -86,6 +86,7 @@ describe('logger configuration', () => {
     expect(ignore({ url: '/avatars/user-1' })).toBe(true);
     expect(ignore({ url: '/.well-known/jwks.json' })).toBe(true);
     expect(ignore({ url: '/docs/swagger-ui.css' })).toBe(true);
+    expect(ignore({ url: '/healthz' })).toBe(true);
     expect(ignore({ url: '/token' })).toBe(false);
   });
 

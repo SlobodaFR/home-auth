@@ -33,6 +33,7 @@ const API_ROUTES = [
   '/profile/(.*)',
   '/avatars/(.*)',
   '/admin/(.*)',
+  '/healthz',
 ];
 
 @Module({

@@ -20,6 +20,7 @@ import { JwksTokenService } from './auth/jwks-token.service';
 import { JwtSessionService } from './auth/jwt-session.service';
 import { RsaKeyProvider } from './auth/rsa-key-provider';
 import { ResendEmailSender } from './email/resend-email-sender';
+import { RuntimeHealthMonitor } from './observability/runtime-health.monitor';
 import { AuthorizationCodeOrmEntity } from './persistence/entities/authorization-code.orm-entity';
 import { ClientAccessOrmEntity } from './persistence/entities/client-access.orm-entity';
 import { ClientOrmEntity } from './persistence/entities/client.orm-entity';
@@ -82,6 +83,7 @@ const ENTITIES = [
       useFactory: createPostHogTelemetry,
       inject: [ConfigService],
     },
+    RuntimeHealthMonitor,
     SessionAuthGuard,
     AdminGuard,
     AccessTokenGuard,
@@ -99,6 +101,7 @@ const ENTITIES = [
     AvatarStorage,
     WebhookNotifier,
     Telemetry,
+    RuntimeHealthMonitor,
     SessionAuthGuard,
     AdminGuard,
     AccessTokenGuard,
