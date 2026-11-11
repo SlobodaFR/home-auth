@@ -68,7 +68,11 @@ export class Client {
     return this.props.redirectUris.includes(uri);
   }
 
-  update(props: Partial<Pick<ClientProps, 'name' | 'redirectUris' | 'logoutWebhookUrl'>>): Client {
+  update(
+    props: Partial<
+      Pick<ClientProps, 'name' | 'redirectUris' | 'logoutWebhookUrl'>
+    >,
+  ): Client {
     return new Client({ ...this.props, ...props });
   }
 

@@ -19,13 +19,17 @@ export class GrantClientAccessUseCase {
     if (!(await this.userRepository.findById(userId))) {
       throw new NotFoundException(`User ${userId} not found`);
     }
-    await this.clientAccessRepository.grant(ClientAccess.create({ userId, clientId }));
+    await this.clientAccessRepository.grant(
+      ClientAccess.create({ userId, clientId }),
+    );
   }
 }
 
 @Injectable()
 export class RevokeClientAccessUseCase {
-  constructor(private readonly clientAccessRepository: ClientAccessRepository) {}
+  constructor(
+    private readonly clientAccessRepository: ClientAccessRepository,
+  ) {}
 
   async execute(clientId: string, userId: string): Promise<void> {
     await this.clientAccessRepository.revoke(userId, clientId);

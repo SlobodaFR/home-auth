@@ -21,17 +21,15 @@ describe('ResendEmailSender', () => {
   });
 
   it('keeps only the status and the Resend error name when the API rejects', async () => {
-    jest
-      .spyOn(global, 'fetch')
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            name: 'validation_error',
-            message: 'You can only send to x@example.com',
-          }),
-          { status: 403 },
-        ),
-      );
+    jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          name: 'validation_error',
+          message: 'You can only send to x@example.com',
+        }),
+        { status: 403 },
+      ),
+    );
 
     const error = await sender({ RESEND_API_KEY: 're_test' })
       .send(MESSAGE)

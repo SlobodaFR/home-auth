@@ -34,7 +34,9 @@ const LOCALES: { code: string; label: string; flag: string }[] = [
 export function ProfilePage() {
   const { user, logout, refresh } = useAuth();
   const [name, setName] = useState(user?.name ?? '');
-  const [countryCode, setCountryCode] = useState<string>(user?.countryCode ?? '');
+  const [countryCode, setCountryCode] = useState<string>(
+    user?.countryCode ?? '',
+  );
   const [locale, setLocale] = useState<string>(user?.locale ?? '');
   const [savingName, setSavingName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -91,7 +93,9 @@ export function ProfilePage() {
 
   return (
     <main className="max-w-3xl mx-auto px-margin-mobile md:px-margin-desktop py-xxl">
-      <h1 className="font-heading-xl text-heading-xl text-ink tracking-tight">Mon profil</h1>
+      <h1 className="font-heading-xl text-heading-xl text-ink tracking-tight">
+        Mon profil
+      </h1>
       <p className="font-body-md text-body-md text-mute mt-xs mb-xl">
         Gerez vos informations personnelles et votre compte.
       </p>
@@ -106,7 +110,9 @@ export function ProfilePage() {
                 className="w-16 h-16 rounded-full object-cover bg-surface-variant"
               />
               <div>
-                <p className="font-body-strong text-body-strong text-ink">Photo de profil</p>
+                <p className="font-body-strong text-body-strong text-ink">
+                  Photo de profil
+                </p>
                 <p className="font-caption text-caption text-mute mb-xs">
                   Recommande&nbsp;: image carree, JPG ou PNG, min 400x400px.
                 </p>
@@ -123,7 +129,10 @@ export function ProfilePage() {
             </div>
 
             <div className="border-t border-hairline pt-lg space-y-xs">
-              <label className="font-label-sm text-label-sm text-charcoal block px-xs" htmlFor="name">
+              <label
+                className="font-label-sm text-label-sm text-charcoal block px-xs"
+                htmlFor="name"
+              >
                 Nom affiche
               </label>
               <input
@@ -134,12 +143,16 @@ export function ProfilePage() {
                 className="w-full px-md py-sm bg-canvas border border-hairline rounded-lg text-ink font-body-md focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
               />
               <p className="font-caption text-caption text-mute px-xs">
-                C&apos;est ainsi que votre nom apparaitra aux autres administrateurs.
+                C&apos;est ainsi que votre nom apparaitra aux autres
+                administrateurs.
               </p>
             </div>
 
             <div className="border-t border-hairline pt-lg space-y-xs">
-              <label className="font-label-sm text-label-sm text-charcoal block px-xs" htmlFor="email">
+              <label
+                className="font-label-sm text-label-sm text-charcoal block px-xs"
+                htmlFor="email"
+              >
                 Adresse email
               </label>
               <input
@@ -153,7 +166,10 @@ export function ProfilePage() {
 
             <div className="border-t border-hairline pt-lg grid grid-cols-1 md:grid-cols-2 gap-lg">
               <div className="space-y-xs">
-                <label className="font-label-sm text-label-sm text-charcoal block px-xs" htmlFor="country">
+                <label
+                  className="font-label-sm text-label-sm text-charcoal block px-xs"
+                  htmlFor="country"
+                >
                   Pays
                 </label>
                 <div className="relative">
@@ -179,7 +195,10 @@ export function ProfilePage() {
               </div>
 
               <div className="space-y-xs">
-                <label className="font-label-sm text-label-sm text-charcoal block px-xs" htmlFor="locale">
+                <label
+                  className="font-label-sm text-label-sm text-charcoal block px-xs"
+                  htmlFor="locale"
+                >
                   Langue
                 </label>
                 <div className="relative">
@@ -215,8 +234,14 @@ export function ProfilePage() {
               Deconnexion
             </button>
             <div className="flex items-center gap-md">
-              {error && <p className="font-caption text-caption text-error">{error}</p>}
-              {message && <p className="font-caption text-caption text-secondary">{message}</p>}
+              {error && (
+                <p className="font-caption text-caption text-error">{error}</p>
+              )}
+              {message && (
+                <p className="font-caption text-caption text-secondary">
+                  {message}
+                </p>
+              )}
               <button
                 type="submit"
                 disabled={savingName}

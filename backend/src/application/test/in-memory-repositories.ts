@@ -105,7 +105,7 @@ export class InMemoryClientAccessRepository extends ClientAccessRepository {
   }
 
   async revokeAllByClientId(clientId: string): Promise<void> {
-    for (const key of [...this.entries]) {
+    for (const key of this.entries) {
       if (key.endsWith(`::${clientId}`)) {
         this.entries.delete(key);
       }
@@ -135,7 +135,7 @@ export class InMemoryAuthorizationCodeRepository extends AuthorizationCodeReposi
 
   async deleteExpiredBefore(date: Date): Promise<number> {
     let deleted = 0;
-    for (const [key, code] of [...this.codes]) {
+    for (const [key, code] of this.codes) {
       if (code.expiresAt.getTime() < date.getTime()) {
         this.codes.delete(key);
         deleted += 1;
@@ -179,7 +179,7 @@ export class InMemoryRefreshTokenRepository extends RefreshTokenRepository {
   }
 
   async deleteAllForUser(userId: string): Promise<void> {
-    for (const token of [...this.tokens.values()]) {
+    for (const token of this.tokens.values()) {
       if (token.userId === userId) {
         this.tokens.delete(token.id);
       }
@@ -188,7 +188,7 @@ export class InMemoryRefreshTokenRepository extends RefreshTokenRepository {
 
   async deleteExpiredBefore(date: Date): Promise<number> {
     let deleted = 0;
-    for (const [key, token] of [...this.tokens]) {
+    for (const [key, token] of this.tokens) {
       if (token.expiresAt.getTime() < date.getTime()) {
         this.tokens.delete(key);
         deleted += 1;
@@ -218,7 +218,7 @@ export class InMemoryMagicLinkTokenRepository extends MagicLinkTokenRepository {
 
   async deleteExpiredBefore(date: Date): Promise<number> {
     let deleted = 0;
-    for (const [key, token] of [...this.tokens]) {
+    for (const [key, token] of this.tokens) {
       if (token.expiresAt.getTime() < date.getTime()) {
         this.tokens.delete(key);
         deleted += 1;

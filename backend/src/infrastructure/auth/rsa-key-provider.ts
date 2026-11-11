@@ -24,8 +24,16 @@ export class RsaKeyProvider implements OnModuleInit {
     const { privateKeyPem, publicKeyPem } = this.loadOrGenerateKeyPair();
     this.privateKey = await importPKCS8(privateKeyPem, 'RS256');
     this.publicKey = await importSPKI(publicKeyPem, 'RS256');
-    this.keyId = createHash('sha256').update(publicKeyPem).digest('hex').slice(0, 16);
-    this.publicJwk = { ...(await exportJWK(this.publicKey)), kid: this.keyId, alg: 'RS256', use: 'sig' };
+    this.keyId = createHash('sha256')
+      .update(publicKeyPem)
+      .digest('hex')
+      .slice(0, 16);
+    this.publicJwk = {
+      ...(await exportJWK(this.publicKey)),
+      kid: this.keyId,
+      alg: 'RS256',
+      use: 'sig',
+    };
   }
 
   getPrivateKey(): KeyLike {
@@ -44,14 +52,22 @@ export class RsaKeyProvider implements OnModuleInit {
     return this.publicJwk;
   }
 
-  private loadOrGenerateKeyPair(): { privateKeyPem: string; publicKeyPem: string } {
+  private loadOrGenerateKeyPair(): {
+    privateKeyPem: string;
+    publicKeyPem: string;
+  } {
     const envPrivateKey = this.config.get<string>('JWT_PRIVATE_KEY');
     const envPublicKey = this.config.get<string>('JWT_PUBLIC_KEY');
     if (envPrivateKey && envPublicKey) {
-      return { privateKeyPem: normalizePem(envPrivateKey), publicKeyPem: normalizePem(envPublicKey) };
+      return {
+        privateKeyPem: normalizePem(envPrivateKey),
+        publicKeyPem: normalizePem(envPublicKey),
+      };
     }
 
-    const dataDir = dirname(this.config.get<string>('DATABASE_PATH', 'data/auth.sqlite'));
+    const dataDir = dirname(
+      this.config.get<string>('DATABASE_PATH', 'data/auth.sqlite'),
+    );
     const privateKeyPath = join(dataDir, 'jwt-private.pem');
     const publicKeyPath = join(dataDir, 'jwt-public.pem');
 

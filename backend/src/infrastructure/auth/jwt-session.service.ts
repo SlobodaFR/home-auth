@@ -11,7 +11,10 @@ export class JwtSessionService extends SessionService {
     super();
   }
 
-  async sign(userId: string, ttlSeconds: number = SESSION_TTL): Promise<string> {
+  async sign(
+    userId: string,
+    ttlSeconds: number = SESSION_TTL,
+  ): Promise<string> {
     return new SignJWT({})
       .setProtectedHeader({ alg: 'RS256', kid: this.keys.getKeyId() })
       .setSubject(userId)
@@ -23,7 +26,9 @@ export class JwtSessionService extends SessionService {
 
   async verify(token: string): Promise<string | null> {
     try {
-      const { payload } = await jwtVerify(token, this.keys.getPublicKey(), { audience: SESSION_AUDIENCE });
+      const { payload } = await jwtVerify(token, this.keys.getPublicKey(), {
+        audience: SESSION_AUDIENCE,
+      });
       return payload.sub ?? null;
     } catch {
       return null;

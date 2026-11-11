@@ -21,13 +21,17 @@ describe('UpdateClientUseCase', () => {
     await seedClient(clientRepository);
     const useCase = new UpdateClientUseCase(clientRepository);
 
-    const updated = await useCase.execute('budget', { name: 'Foyer Budget v2' });
+    const updated = await useCase.execute('budget', {
+      name: 'Foyer Budget v2',
+    });
 
     expect(updated.name).toBe('Foyer Budget v2');
   });
 
   it('rejects an unknown client', async () => {
     const useCase = new UpdateClientUseCase(new InMemoryClientRepository());
-    await expect(useCase.execute('unknown', { name: 'X' })).rejects.toThrow('Client unknown not found');
+    await expect(useCase.execute('unknown', { name: 'X' })).rejects.toThrow(
+      'Client unknown not found',
+    );
   });
 });

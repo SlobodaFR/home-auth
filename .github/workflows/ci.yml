@@ -21,8 +21,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Lint backend
-        run: npm run lint --workspace=backend
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
 
       - name: Type-check frontend
         run: npx tsc -b --noEmit

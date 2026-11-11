@@ -19,11 +19,15 @@ describe('User', () => {
   });
 
   it('rejects an invalid email', () => {
-    expect(() => User.create({ ...baseProps, email: 'not-an-email' })).toThrow('Invalid email address');
+    expect(() => User.create({ ...baseProps, email: 'not-an-email' })).toThrow(
+      'Invalid email address',
+    );
   });
 
   it('rejects an empty name', () => {
-    expect(() => User.create({ ...baseProps, name: '   ' })).toThrow('Name must not be empty');
+    expect(() => User.create({ ...baseProps, name: '   ' })).toThrow(
+      'Name must not be empty',
+    );
   });
 
   it('rename returns a new User with the updated name', () => {
@@ -53,9 +57,15 @@ describe('User', () => {
   });
 
   it('rejects an invalid country code', () => {
-    expect(() => User.create({ ...baseProps, countryCode: 'fr' })).toThrow('Invalid country code');
-    expect(() => User.create({ ...baseProps, countryCode: 'FRA' })).toThrow('Invalid country code');
-    expect(() => User.create({ ...baseProps, countryCode: '12' })).toThrow('Invalid country code');
+    expect(() => User.create({ ...baseProps, countryCode: 'fr' })).toThrow(
+      'Invalid country code',
+    );
+    expect(() => User.create({ ...baseProps, countryCode: 'FRA' })).toThrow(
+      'Invalid country code',
+    );
+    expect(() => User.create({ ...baseProps, countryCode: '12' })).toThrow(
+      'Invalid country code',
+    );
   });
 
   it('accepts a null country code', () => {
@@ -74,7 +84,9 @@ describe('User', () => {
   });
 
   it('rejects an invalid locale', () => {
-    expect(() => User.create({ ...baseProps, locale: 'invalid locale!' })).toThrow('Invalid locale');
+    expect(() =>
+      User.create({ ...baseProps, locale: 'invalid locale!' }),
+    ).toThrow('Invalid locale');
   });
 
   it('accepts a null locale', () => {

@@ -1,7 +1,16 @@
-import { DeleteObjectCommand, GetObjectCommand, NoSuchKey, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  NoSuchKey,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AvatarStorage, StoredAvatar } from '../../domain/shared/avatar-storage';
+import {
+  AvatarStorage,
+  StoredAvatar,
+} from '../../domain/shared/avatar-storage';
 
 @Injectable()
 export class S3AvatarStorage extends AvatarStorage {
@@ -41,12 +50,17 @@ export class S3AvatarStorage extends AvatarStorage {
   async get(avatarKey: string): Promise<StoredAvatar | null> {
     this.assertConfigured();
     try {
-      const response = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: avatarKey }));
+      const response = await this.client.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: avatarKey }),
+      );
       const body = await response.Body?.transformToByteArray();
       if (!body) {
         return null;
       }
-      return { contentType: response.ContentType ?? 'application/octet-stream', body: Buffer.from(body) };
+      return {
+        contentType: response.ContentType ?? 'application/octet-stream',
+        body: Buffer.from(body),
+      };
     } catch (error) {
       if (error instanceof NoSuchKey) {
         return null;
@@ -57,7 +71,9 @@ export class S3AvatarStorage extends AvatarStorage {
 
   async delete(avatarKey: string): Promise<void> {
     this.assertConfigured();
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: avatarKey }));
+    await this.client.send(
+      new DeleteObjectCommand({ Bucket: this.bucket, Key: avatarKey }),
+    );
   }
 
   private objectKey(userId: string): string {
@@ -66,7 +82,9 @@ export class S3AvatarStorage extends AvatarStorage {
 
   private assertConfigured(): void {
     if (!this.bucket) {
-      throw new ServiceUnavailableException('Avatar storage is not configured (MINIO_BUCKET missing)');
+      throw new ServiceUnavailableException(
+        'Avatar storage is not configured (MINIO_BUCKET missing)',
+      );
     }
   }
 }

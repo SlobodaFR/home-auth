@@ -7,7 +7,10 @@ describe('InviteUserUseCase', () => {
     const userRepository = new InMemoryUserRepository();
     const useCase = new InviteUserUseCase(userRepository);
 
-    const user = await useCase.execute({ email: 'Bob@Example.com', name: 'Bob' });
+    const user = await useCase.execute({
+      email: 'Bob@Example.com',
+      name: 'Bob',
+    });
 
     expect(user.email).toBe('bob@example.com');
     expect(user.isAdmin).toBe(false);
@@ -28,8 +31,8 @@ describe('InviteUserUseCase', () => {
     );
     const useCase = new InviteUserUseCase(userRepository);
 
-    await expect(useCase.execute({ email: 'bob@example.com', name: 'Bob' })).rejects.toThrow(
-      'User bob@example.com already exists',
-    );
+    await expect(
+      useCase.execute({ email: 'bob@example.com', name: 'Bob' }),
+    ).rejects.toThrow('User bob@example.com already exists');
   });
 });

@@ -6,7 +6,9 @@ export function RequireAdmin({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="px-6 py-12 text-center text-mute">Chargement...</div>;
+    return (
+      <div className="px-6 py-12 text-center text-mute">Chargement...</div>
+    );
   }
 
   if (!user) {

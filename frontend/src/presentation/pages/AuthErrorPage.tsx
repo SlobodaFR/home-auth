@@ -3,21 +3,25 @@ import { useSearchParams } from 'react-router-dom';
 const MESSAGES: Record<string, { title: string; description: string }> = {
   forbidden: {
     title: 'Acces non autorise',
-    description: "Votre compte n'a pas acces a cette application. Contactez un administrateur pour en demander l'acces.",
+    description:
+      "Votre compte n'a pas acces a cette application. Contactez un administrateur pour en demander l'acces.",
   },
   unknown_client: {
     title: 'Application inconnue',
-    description: "Cette application n'est pas enregistree auprès du service d'authentification.",
+    description:
+      "Cette application n'est pas enregistree auprès du service d'authentification.",
   },
   invalid_request: {
     title: 'Requete invalide',
-    description: 'La demande de connexion est invalide ou incomplete. Revenez sur l\'application et reessayez.',
+    description:
+      "La demande de connexion est invalide ou incomplete. Revenez sur l'application et reessayez.",
   },
 };
 
 const DEFAULT_MESSAGE = {
   title: 'Une erreur est survenue',
-  description: 'Impossible de poursuivre la connexion. Revenez sur l\'application et reessayez.',
+  description:
+    "Impossible de poursuivre la connexion. Revenez sur l'application et reessayez.",
 };
 
 export function AuthErrorPage() {
@@ -33,8 +37,12 @@ export function AuthErrorPage() {
         <div className="w-16 h-16 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-lg">
           <span className="material-symbols-outlined !text-[32px]">block</span>
         </div>
-        <h1 className="font-headline-lg text-headline-lg text-ink mb-md tracking-tight">{title}</h1>
-        <p className="font-body-md text-body-md text-mute mb-xl leading-relaxed">{description}</p>
+        <h1 className="font-headline-lg text-headline-lg text-ink mb-md tracking-tight">
+          {title}
+        </h1>
+        <p className="font-body-md text-body-md text-mute mb-xl leading-relaxed">
+          {description}
+        </p>
         {client && (
           <p className="font-caption text-caption text-mute mb-xl break-all">
             Application : <span className="text-charcoal">{client}</span>
