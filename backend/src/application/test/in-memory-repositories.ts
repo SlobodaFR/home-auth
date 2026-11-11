@@ -102,6 +102,23 @@ export class InMemoryClientAccessRepository extends ClientAccessRepository {
         ClientAccess.create({ userId: key.split('::')[0], clientId }),
       );
   }
+
+  async revokeAllByClientId(clientId: string): Promise<void> {
+    for (const key of [...this.entries]) {
+      if (key.endsWith(`::${clientId}`)) {
+        this.entries.delete(key);
+      }
+    }
+  }
+
+  async countAllByClientId(): Promise<ReadonlyMap<string, number>> {
+    const counts = new Map<string, number>();
+    for (const key of this.entries) {
+      const clientId = key.split('::')[1];
+      counts.set(clientId, (counts.get(clientId) ?? 0) + 1);
+    }
+    return counts;
+  }
 }
 
 export class InMemoryAuthorizationCodeRepository extends AuthorizationCodeRepository {

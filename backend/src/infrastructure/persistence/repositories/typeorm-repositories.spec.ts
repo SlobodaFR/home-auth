@@ -132,6 +132,32 @@ describe('TypeOrmClientAccessRepository', () => {
 
     await moduleRef.close();
   });
+
+  it('counts access per client and revokes all access of a client', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmClientAccessRepository);
+
+    for (const [userId, clientId] of [
+      ['user-1', 'budget'],
+      ['user-2', 'budget'],
+      ['user-1', 'trainer'],
+    ]) {
+      await repository.grant(ClientAccess.create({ userId, clientId }));
+    }
+    expect(await repository.countAllByClientId()).toEqual(
+      new Map([
+        ['budget', 2],
+        ['trainer', 1],
+      ]),
+    );
+
+    await repository.revokeAllByClientId('budget');
+    expect(await repository.countAllByClientId()).toEqual(
+      new Map([['trainer', 1]]),
+    );
+
+    await moduleRef.close();
+  });
 });
 
 describe('TypeOrmAuthorizationCodeRepository', () => {
