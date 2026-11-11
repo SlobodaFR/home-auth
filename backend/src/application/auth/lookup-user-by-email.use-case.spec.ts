@@ -1,6 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from '../../domain/client/client';
+import * as hash from '../../domain/shared/hash';
 import { hashSecret } from '../../domain/shared/hash';
 import { User } from '../../domain/user/user';
 import { GetUserInfoUseCase } from '../profile/get-user-info.use-case';
@@ -33,7 +34,7 @@ describe('LookupUserByEmailUseCase', () => {
       Client.create({
         id: 'home-ai',
         name: 'Home AI',
-        clientSecretHash: hashSecret(RAW_SECRET),
+        clientSecretHash: await hashSecret(RAW_SECRET),
         redirectUris: ['https://ai.example.com/auth/callback'],
         logoutWebhookUrl: null,
         createdAt: new Date(),
@@ -105,5 +106,20 @@ describe('LookupUserByEmailUseCase', () => {
       name: 'Alice',
       avatarUrl: 'https://auth.example.com/avatars/user-1',
     });
+  });
+  // Same cost as a known client: response time must not reveal which client ids exist.
+  it('runs the secret check even when the client is unknown', async () => {
+    const deps = createUseCase();
+    const verify = jest.spyOn(hash, 'verifySecret');
+
+    await expect(
+      deps.useCase.execute({
+        clientId: 'unknown',
+        clientSecret: RAW_SECRET,
+        email: 'alice@example.com',
+      }),
+    ).rejects.toThrow('Invalid client credentials');
+    expect(verify).toHaveBeenCalledWith(RAW_SECRET, null);
+    verify.mockRestore();
   });
 });

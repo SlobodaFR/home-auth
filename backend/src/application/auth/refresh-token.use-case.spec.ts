@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { RefreshToken } from '../../domain/auth/refresh-token';
 import { Client } from '../../domain/client/client';
+import * as hash from '../../domain/shared/hash';
 import { hashSecret, hashToken } from '../../domain/shared/hash';
 import { User } from '../../domain/user/user';
 import {
@@ -46,7 +47,7 @@ describe('RefreshTokenUseCase', () => {
       Client.create({
         id: 'budget',
         name: 'Foyer Budget',
-        clientSecretHash: hashSecret(RAW_SECRET),
+        clientSecretHash: await hashSecret(RAW_SECRET),
         redirectUris: ['https://budget.example.com/auth/callback'],
         logoutWebhookUrl: null,
         createdAt: new Date(),
@@ -169,5 +170,20 @@ describe('RefreshTokenUseCase', () => {
         hashToken(RAW_REFRESH_TOKEN),
       ),
     ).toBeNull();
+  });
+  // Same cost as a known client: response time must not reveal which client ids exist.
+  it('runs the secret check even when the client is unknown', async () => {
+    const deps = createUseCase();
+    const verify = jest.spyOn(hash, 'verifySecret');
+
+    await expect(
+      deps.useCase.execute({
+        refreshToken: RAW_REFRESH_TOKEN,
+        clientId: 'unknown',
+        clientSecret: RAW_SECRET,
+      }),
+    ).rejects.toThrow('Invalid client credentials');
+    expect(verify).toHaveBeenCalledWith(RAW_SECRET, null);
+    verify.mockRestore();
   });
 });
