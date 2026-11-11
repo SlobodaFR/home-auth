@@ -28,6 +28,7 @@ import { CreateClientDto } from '../dto/create-client.dto';
 import { GrantClientAccessDto } from '../dto/grant-client-access.dto';
 import { UpdateClientDto } from '../dto/update-client.dto';
 import { AdminGuard } from '../guards/admin.guard';
+import { SameOriginGuard } from '../guards/same-origin.guard';
 import { SessionAuthGuard } from '../guards/session-auth.guard';
 import {
   ClientDto,
@@ -40,7 +41,8 @@ import { CreateClientResponseDto } from '../presenters/create-client-response.dt
 @ApiTags('Admin - Clients')
 @ApiCookieAuth('auth_session')
 @Controller('admin/clients')
-@UseGuards(SessionAuthGuard, AdminGuard)
+// SameOriginGuard first: a cross-site form must be refused before any session work.
+@UseGuards(SameOriginGuard, SessionAuthGuard, AdminGuard)
 export class AdminClientsController {
   constructor(
     private readonly listClientsUseCase: ListClientsUseCase,

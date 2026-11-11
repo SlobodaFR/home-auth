@@ -20,13 +20,15 @@ import { CurrentUser } from '../decorators/current-user.decorator';
 import { InviteUserDto } from '../dto/invite-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { AdminGuard } from '../guards/admin.guard';
+import { SameOriginGuard } from '../guards/same-origin.guard';
 import { SessionAuthGuard, SessionUser } from '../guards/session-auth.guard';
 import { toUserDto, UserDto } from '../presenters/user.presenter';
 
 @ApiTags('Admin - Users')
 @ApiCookieAuth('auth_session')
 @Controller('admin/users')
-@UseGuards(SessionAuthGuard, AdminGuard)
+// SameOriginGuard first: a cross-site form must be refused before any session work.
+@UseGuards(SameOriginGuard, SessionAuthGuard, AdminGuard)
 export class AdminUsersController {
   constructor(
     private readonly listUsersUseCase: ListUsersUseCase,

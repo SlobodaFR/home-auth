@@ -1,4 +1,5 @@
 import { ExecutionContext } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -32,6 +33,7 @@ describe('POST /profile/avatar (upload limits)', () => {
         { provide: UploadAvatarUseCase, useValue: { execute } },
         { provide: GetUserInfoUseCase, useValue: {} },
         { provide: UpdateProfileUseCase, useValue: {} },
+        { provide: ConfigService, useValue: new ConfigService({}) },
       ],
     })
       .overrideGuard(SessionAuthGuard)
@@ -55,6 +57,7 @@ describe('POST /profile/avatar (upload limits)', () => {
   it('answers 413 past 2 MB without reaching the use case', async () => {
     await request(app.getHttpServer())
       .post('/profile/avatar')
+      .set('Sec-Fetch-Site', 'same-origin')
       .attach('avatar', Buffer.alloc(3 * 1024 * 1024), 'a.png')
       .expect(413);
 
@@ -64,6 +67,7 @@ describe('POST /profile/avatar (upload limits)', () => {
   it('rejects more than one file', async () => {
     await request(app.getHttpServer())
       .post('/profile/avatar')
+      .set('Sec-Fetch-Site', 'same-origin')
       .attach('avatar', PNG, 'a.png')
       .attach('avatar', PNG, 'b.png')
       .expect(400);
@@ -74,6 +78,7 @@ describe('POST /profile/avatar (upload limits)', () => {
   it('accepts a small image and passes only its bytes on', async () => {
     await request(app.getHttpServer())
       .post('/profile/avatar')
+      .set('Sec-Fetch-Site', 'same-origin')
       .attach('avatar', PNG, 'a.png')
       .expect(204);
 

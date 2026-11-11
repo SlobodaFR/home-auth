@@ -28,13 +28,14 @@ import { UploadAvatarUseCase } from '../../../application/profile/upload-avatar.
 import { MAX_AVATAR_BYTES } from '../../../domain/shared/image-type';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
+import { SameOriginGuard } from '../guards/same-origin.guard';
 import { SessionAuthGuard, SessionUser } from '../guards/session-auth.guard';
 import { UserInfoDto } from '../presenters/user-info.dto';
 
 @ApiTags('Profile')
 @ApiCookieAuth('auth_session')
 @Controller('profile')
-@UseGuards(SessionAuthGuard)
+@UseGuards(SameOriginGuard, SessionAuthGuard)
 export class ProfileController {
   constructor(
     private readonly getUserInfo: GetUserInfoUseCase,

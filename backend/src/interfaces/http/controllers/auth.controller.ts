@@ -22,6 +22,7 @@ import { SESSION_TTL } from '../../../domain/auth/session.service';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { AuthCallbackDto } from '../dto/auth-callback.dto';
 import { RequestMagicLinkDto } from '../dto/request-magic-link.dto';
+import { SameOriginGuard } from '../guards/same-origin.guard';
 import {
   SESSION_COOKIE_NAME,
   SessionAuthGuard,
@@ -55,6 +56,8 @@ export class AuthController {
   }
 
   @Post('callback')
+  // Login CSRF: another site must not be able to sign the victim into the attacker's account.
+  @UseGuards(SameOriginGuard)
   @ApiOperation({ summary: 'Exchange a magic-link token for a session cookie' })
   @ApiResponse({ status: 200, type: AuthCallbackResponseDto })
   async callback(
@@ -76,7 +79,7 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(204)
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(SameOriginGuard, SessionAuthGuard)
   @ApiCookieAuth('auth_session')
   @ApiOperation({ summary: 'Log out and clear the session cookie' })
   @ApiResponse({ status: 204, description: 'Logged out' })
