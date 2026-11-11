@@ -15,7 +15,9 @@ describe('CreateClientUseCase', () => {
     });
 
     expect(result.client.id).toBe('budget');
-    expect(verifySecret(result.clientSecret, result.client.clientSecretHash)).toBe(true);
+    expect(
+      await verifySecret(result.clientSecret, result.client.clientSecretHash),
+    ).toBe(true);
   });
 
   it('rejects a duplicate client id', async () => {

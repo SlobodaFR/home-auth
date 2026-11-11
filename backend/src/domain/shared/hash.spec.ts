@@ -1,3 +1,4 @@
+import { scryptSync } from 'crypto';
 import { hashSecret, hashToken, verifySecret } from './hash';
 
 describe('hashToken', () => {
@@ -11,21 +12,64 @@ describe('hashToken', () => {
 });
 
 describe('hashSecret / verifySecret', () => {
-  it('verifies a matching secret', () => {
-    const hash = hashSecret('s3cret');
-    expect(verifySecret('s3cret', hash)).toBe(true);
+  it('verifies a matching secret', async () => {
+    const hash = await hashSecret('s3cret');
+    await expect(verifySecret('s3cret', hash)).resolves.toBe(true);
   });
 
-  it('rejects a non-matching secret', () => {
-    const hash = hashSecret('s3cret');
-    expect(verifySecret('wrong', hash)).toBe(false);
+  it('rejects a non-matching secret', async () => {
+    const hash = await hashSecret('s3cret');
+    await expect(verifySecret('wrong', hash)).resolves.toBe(false);
   });
 
-  it('produces different hashes for the same input (random salt)', () => {
-    expect(hashSecret('s3cret')).not.toBe(hashSecret('s3cret'));
+  it('produces different hashes for the same input (random salt)', async () => {
+    expect(await hashSecret('s3cret')).not.toBe(await hashSecret('s3cret'));
   });
 
-  it('rejects a malformed stored hash', () => {
-    expect(verifySecret('s3cret', 'not-a-valid-hash')).toBe(false);
+  it('rejects a malformed stored hash', async () => {
+    await expect(verifySecret('s3cret', 'not-a-valid-hash')).resolves.toBe(
+      false,
+    );
+  });
+
+  it('returns false for a null stored hash (unknown client)', async () => {
+    await expect(verifySecret('x', null)).resolves.toBe(false);
+  });
+
+  // Secrets already in the database were hashed by the former scryptSync implementation.
+  it('still verifies a hash produced by the former scryptSync implementation', async () => {
+    const salt = '0123456789abcdef0123456789abcdef';
+    const legacy = `${salt}:${scryptSync('s3cret', salt, 64).toString('hex')}`;
+
+    await expect(verifySecret('s3cret', legacy)).resolves.toBe(true);
+    await expect(verifySecret('wrong', legacy)).resolves.toBe(false);
+  });
+
+  it('does not block the event loop while verifying', async () => {
+    const hash = await hashSecret('s3cret');
+    const order: string[] = [];
+    setImmediate(() => order.push('immediate'));
+
+    await verifySecret('s3cret', hash).then(() => order.push('verified'));
+
+    expect(order).toEqual(['immediate', 'verified']);
+  });
+
+  it('does not block the event loop while verifying an unknown client', async () => {
+    const order: string[] = [];
+    setImmediate(() => order.push('immediate'));
+
+    await verifySecret('s3cret', null).then(() => order.push('verified'));
+
+    expect(order).toEqual(['immediate', 'verified']);
+  });
+
+  it('does not block the event loop while hashing', async () => {
+    const order: string[] = [];
+    setImmediate(() => order.push('immediate'));
+
+    await hashSecret('s3cret').then(() => order.push('hashed'));
+
+    expect(order).toEqual(['immediate', 'hashed']);
   });
 });

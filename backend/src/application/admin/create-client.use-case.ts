@@ -26,10 +26,11 @@ export class CreateClientUseCase {
     }
 
     const clientSecret = randomBytes(32).toString('hex');
+    const clientSecretHash = await hashSecret(clientSecret);
     const client = Client.create({
       id: input.id,
       name: input.name,
-      clientSecretHash: hashSecret(clientSecret),
+      clientSecretHash,
       redirectUris: input.redirectUris,
       logoutWebhookUrl: input.logoutWebhookUrl,
       createdAt: new Date(),

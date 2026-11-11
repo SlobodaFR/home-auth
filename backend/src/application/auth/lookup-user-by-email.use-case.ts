@@ -36,7 +36,12 @@ export class LookupUserByEmailUseCase {
     input: LookupUserByEmailInput,
   ): Promise<UserLookupResult | undefined> {
     const client = await this.clientRepository.findById(input.clientId);
-    if (!client || !verifySecret(input.clientSecret, client.clientSecretHash)) {
+    // Always verify, even for an unknown client, so timing does not reveal existing client ids.
+    const secretOk = await verifySecret(
+      input.clientSecret,
+      client?.clientSecretHash ?? null,
+    );
+    if (!client || !secretOk) {
       throw new UnauthorizedException('Invalid client credentials');
     }
 
