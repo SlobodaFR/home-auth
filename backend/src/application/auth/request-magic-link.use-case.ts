@@ -5,6 +5,7 @@ import { MagicLinkToken } from '../../domain/auth/magic-link-token';
 import { MagicLinkTokenRepository } from '../../domain/auth/magic-link-token.repository';
 import { EmailSender } from '../../domain/shared/email-sender';
 import { hashToken } from '../../domain/shared/hash';
+import { pseudonymize } from '../../domain/shared/pseudonymize';
 import { User } from '../../domain/user/user';
 import { UserRepository } from '../../domain/user/user.repository';
 import { buildMagicLinkEmailHtml } from '../../infrastructure/email/templates/magic-link-email.template';
@@ -36,8 +37,12 @@ export class RequestMagicLinkUseCase {
     if (!user) {
       user = await this.bootstrapAdminIfEligible(email);
       if (!user) {
+        const pid = pseudonymize(
+          email,
+          this.config.getOrThrow<string>('PSEUDONYM_SECRET'),
+        );
         this.logger.log(
-          `Magic link requested for unknown email ${email}; ignoring (no self-signup)`,
+          `Magic link requested for unknown email (pid=${pid}); ignoring (no self-signup)`,
         );
         return;
       }
