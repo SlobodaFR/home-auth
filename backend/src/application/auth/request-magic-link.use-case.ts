@@ -96,11 +96,21 @@ export class RequestMagicLinkUseCase {
       link += `&redirect=${encodeURIComponent(redirect)}`;
     }
 
-    await this.emailSender.send({
-      to: user.email,
-      subject: 'Votre lien de connexion',
-      html: buildMagicLinkEmailHtml(link),
-    });
+    // Fire-and-forget: waiting for delivery would make known emails answer measurably
+    // slower than unknown ones, revealing which accounts exist (#24). A failed delivery is lost;
+    // the user asks for a new link.
+    void this.emailSender
+      .send({
+        to: user.email,
+        subject: 'Votre lien de connexion',
+        html: buildMagicLinkEmailHtml(link),
+      })
+      .catch((error: unknown) => {
+        // Never the message: Resend errors can echo the address.
+        this.logger.error(
+          `Magic link email delivery failed (${error instanceof Error ? error.name : 'unknown error'})`,
+        );
+      });
   }
 
   private async bootstrapAdminIfEligible(email: string): Promise<User | null> {
