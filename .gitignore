@@ -15,3 +15,6 @@ coverage
 **/reports
 **/.stryker-tmp
 backend/.env.dev
+
+# Incremental compile caches
+*.tsbuildinfo

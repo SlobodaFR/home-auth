@@ -48,7 +48,8 @@
       }
     ],
     "react/set-state-in-effect": "off",
-    "react/immutability": "off"
+    "react/immutability": "off",
+    "react/hooks": "error"
   },
   "overrides": [
     {
