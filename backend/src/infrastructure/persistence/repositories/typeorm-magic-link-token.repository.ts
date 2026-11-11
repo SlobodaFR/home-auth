@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, MoreThanOrEqual, Repository } from 'typeorm';
+import { IsNull, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import {
   MAGIC_LINK_TOKEN_TTL_MS,
   MagicLinkToken,
@@ -42,6 +42,15 @@ export class TypeOrmMagicLinkTokenRepository extends MagicLinkTokenRepository {
         ),
       },
     });
+  }
+
+  async markConsumed(tokenHash: string, now: Date): Promise<boolean> {
+    // Single conditional UPDATE: SQLite applies it atomically.
+    const result = await this.repository.update(
+      { tokenHash, consumedAt: IsNull(), expiresAt: MoreThanOrEqual(now) },
+      { consumedAt: now },
+    );
+    return result.affected === 1;
   }
 
   async deleteExpiredBefore(date: Date): Promise<number> {

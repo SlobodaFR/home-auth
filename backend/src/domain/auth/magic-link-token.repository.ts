@@ -7,6 +7,11 @@ export abstract class MagicLinkTokenRepository {
   abstract save(token: MagicLinkToken): Promise<void>;
   abstract findByTokenHash(tokenHash: string): Promise<MagicLinkToken | null>;
   /**
+   * Atomically marks an unconsumed, unexpired link as consumed. Returns false when another request
+   * consumed it first (or it expired).
+   */
+  abstract markConsumed(tokenHash: string, now: Date): Promise<boolean>;
+  /**
    * Number of tokens issued for `email` at or after `since`. Backs the
    * per-email magic-link budget: any purge of old tokens must keep at least
    * the budget window (1 hour), or the budget silently shrinks.

@@ -35,9 +35,11 @@ export class VerifyMagicLinkUseCase {
       throw new UnauthorizedException('Lien de connexion invalide');
     }
 
+    const now = new Date();
     let consumed;
     try {
-      consumed = magicLinkToken.consume();
+      // Domain rules give the reason (used, expired)...
+      consumed = magicLinkToken.consume(now);
     } catch (error) {
       this.telemetry.capture({
         name: 'magic_link_failed',
@@ -49,7 +51,19 @@ export class VerifyMagicLinkUseCase {
         error instanceof Error ? error.message : 'Lien de connexion invalide',
       );
     }
-    await this.magicLinkTokenRepository.save(consumed);
+    // ...but only the atomic update decides, so concurrent clicks cannot both open a session.
+    if (
+      !(await this.magicLinkTokenRepository.markConsumed(
+        consumed.tokenHash,
+        now,
+      ))
+    ) {
+      this.telemetry.capture({
+        name: 'magic_link_failed',
+        properties: { reason: 'used' },
+      });
+      throw new UnauthorizedException('Magic link already used');
+    }
 
     const user = await this.userRepository.findByEmail(consumed.email);
     if (!user) {

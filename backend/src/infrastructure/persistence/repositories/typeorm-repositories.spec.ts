@@ -334,3 +334,65 @@ describe('purge of expired tokens (#29)', () => {
     await moduleRef.close();
   });
 });
+
+describe('atomic single use (#20)', () => {
+  it('redeems an authorization code once, and never an expired one', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmAuthorizationCodeRepository);
+    const now = new Date();
+    await repository.save(
+      AuthorizationCode.issue({
+        codeHash: 'fresh',
+        userId: 'u',
+        clientId: 'c',
+        redirectUri: 'https://c/cb',
+        issuedAt: now,
+      }),
+    );
+    await repository.save(
+      AuthorizationCode.issue({
+        codeHash: 'stale',
+        userId: 'u',
+        clientId: 'c',
+        redirectUri: 'https://c/cb',
+        issuedAt: new Date(now.getTime() - 60 * 60 * 1000),
+      }),
+    );
+
+    expect(await repository.markRedeemed('fresh', now)).toBe(true);
+    expect(await repository.markRedeemed('fresh', now)).toBe(false);
+    expect((await repository.findByCodeHash('fresh'))?.used).toBe(true);
+    expect(await repository.markRedeemed('stale', now)).toBe(false);
+    await moduleRef.close();
+  });
+
+  it('consumes a magic link once, and never an expired one', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmMagicLinkTokenRepository);
+    const now = new Date();
+    await repository.save(
+      MagicLinkToken.issue({
+        id: 'm1',
+        email: 'a@b.c',
+        tokenHash: 'fresh',
+        issuedAt: now,
+      }),
+    );
+    await repository.save(
+      MagicLinkToken.issue({
+        id: 'm2',
+        email: 'a@b.c',
+        tokenHash: 'stale',
+        issuedAt: new Date(now.getTime() - 60 * 60 * 1000),
+      }),
+    );
+
+    expect(await repository.markConsumed('fresh', now)).toBe(true);
+    expect(await repository.markConsumed('fresh', now)).toBe(false);
+    expect(
+      (await repository.findByTokenHash('fresh'))?.consumedAt,
+    ).not.toBeNull();
+    expect(await repository.markConsumed('stale', now)).toBe(false);
+    await moduleRef.close();
+  });
+});

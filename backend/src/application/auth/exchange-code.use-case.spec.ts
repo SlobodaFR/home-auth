@@ -188,4 +188,31 @@ describe('ExchangeCodeUseCase', () => {
     expect(verify).toHaveBeenCalledWith(RAW_SECRET, null);
     verify.mockRestore();
   });
+
+  // Two concurrent exchanges of the same code: exactly one gets tokens (#20).
+  it('redeems a code only once under concurrent requests', async () => {
+    const deps = createUseCase();
+    await seed(deps);
+    const input = {
+      code: RAW_CODE,
+      clientId: 'budget',
+      clientSecret: RAW_SECRET,
+      redirectUri: REDIRECT_URI,
+    };
+
+    const results = await Promise.allSettled([
+      deps.useCase.execute(input),
+      deps.useCase.execute(input),
+    ]);
+
+    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(
+      1,
+    );
+    const rejected = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    expect(String(rejected?.reason)).toContain(
+      'Authorization code already used',
+    );
+  });
 });
