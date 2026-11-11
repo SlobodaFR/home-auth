@@ -3,6 +3,9 @@ import { MAX_LENGTH, generateRandomString } from '../../domain/random-string';
 
 const MIN_LENGTH = 8;
 const COPIED_FEEDBACK_MS = 2000;
+// Points to no form: detaches the controls from the enclosing create-client form so they take
+// part neither in its constraint validation nor in its implicit (Enter) submission.
+const DETACHED_FORM = 'random-string-generator-detached';
 
 const CHARSET_OPTIONS = [
   { key: 'uppercase', label: 'Majuscules' },
@@ -38,8 +41,13 @@ export function RandomStringGenerator() {
   function handleGenerate() {
     setError(null);
     setCopied(false);
+    const requested = Number(length);
+    if (requested < MIN_LENGTH) {
+      setError(`Longueur invalide: minimum ${MIN_LENGTH.toString()}`);
+      return;
+    }
     try {
-      setValue(generateRandomString({ length: Number(length), ...charsets }));
+      setValue(generateRandomString({ length: requested, ...charsets }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
     }
@@ -67,6 +75,13 @@ export function RandomStringGenerator() {
         </span>
         <input
           type="number"
+          form={DETACHED_FORM}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              if (hasCharset) handleGenerate();
+            }
+          }}
           value={length}
           min={MIN_LENGTH}
           max={MAX_LENGTH}
@@ -82,6 +97,7 @@ export function RandomStringGenerator() {
           >
             <input
               type="checkbox"
+              form={DETACHED_FORM}
               checked={charsets[key]}
               onChange={(event) =>
                 setCharsets((current) => ({
@@ -109,6 +125,7 @@ export function RandomStringGenerator() {
         <input
           type="text"
           readOnly
+          form={DETACHED_FORM}
           value={value}
           aria-label="Chaine generee"
           className="flex-1 min-w-0 px-md py-sm bg-soft-cloud border border-hairline rounded-lg text-ink font-caption outline-none"
