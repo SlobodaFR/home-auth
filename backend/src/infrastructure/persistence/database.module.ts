@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ENTITIES } from './entities';
 import { MIGRATIONS } from './migrations';
+import { SchemaGuard } from './schema-guard';
 import { SLOW_QUERY_THRESHOLD_MS, SlowQueryLogger } from './slow-query.logger';
 
 @Module({
@@ -26,5 +27,6 @@ import { SLOW_QUERY_THRESHOLD_MS, SlowQueryLogger } from './slow-query.logger';
       }),
     }),
   ],
+  providers: [SchemaGuard],
 })
 export class DatabaseModule {}
