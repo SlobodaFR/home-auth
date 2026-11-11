@@ -49,7 +49,7 @@ frontend/src/
 ### Oxlint + Oxfmt
 
 - Oxlint (`.oxlintrc.json`) avec règles type-aware (`oxlint-tsgolint`) : promesses, appels `any`,
-  conditions inutiles, imports cycliques ou dupliqués, règles React et Jest.
+  conditions inutiles, imports cycliques ou dupliqués, règles React et Vitest.
 - Oxfmt (`.oxfmtrc.json`) pour le formatage : `singleQuote`, `trailingComma: 'all'`, 80 colonnes.
 - Commandes : `npm run lint`, `npm run lint:fix`, `npm run format`, `npm run format:check` (vérifiés en CI).
 - Aucune règle désactivée inline (`// oxlint-disable`) sans justification en commentaire.

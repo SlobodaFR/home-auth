@@ -31,7 +31,7 @@ administrateur est créé automatiquement pour cette adresse.
 ### Tests & build
 
 ```bash
-npm test              # backend (Jest) + frontend (Vitest)
+npm test              # Vitest, backend + frontend
 npm run lint          # Oxlint (type-aware), backend + frontend
 npm run format        # Oxfmt
 npm run build         # build frontend puis backend (copie le frontend dans backend/dist/public)
