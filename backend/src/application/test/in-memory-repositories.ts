@@ -143,6 +143,16 @@ export class InMemoryAuthorizationCodeRepository extends AuthorizationCodeReposi
     }
     return deleted;
   }
+
+  async markRedeemed(codeHash: string, now: Date): Promise<boolean> {
+    // Check-and-set with no await in between: atomic on the event loop.
+    const code = this.codes.get(codeHash);
+    if (!code || code.used || code.expiresAt.getTime() < now.getTime()) {
+      return false;
+    }
+    this.codes.set(codeHash, code.redeem(now));
+    return true;
+  }
 }
 
 export class InMemoryRefreshTokenRepository extends RefreshTokenRepository {
@@ -215,6 +225,16 @@ export class InMemoryMagicLinkTokenRepository extends MagicLinkTokenRepository {
       }
     }
     return deleted;
+  }
+
+  async markConsumed(tokenHash: string, now: Date): Promise<boolean> {
+    // Check-and-set with no await in between: atomic on the event loop.
+    const token = this.tokens.get(tokenHash);
+    if (!token || token.isConsumed() || token.isExpired(now)) {
+      return false;
+    }
+    this.tokens.set(tokenHash, token.consume(now));
+    return true;
   }
 }
 

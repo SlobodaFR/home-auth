@@ -63,15 +63,25 @@ export class ExchangeCodeUseCase {
       throw new UnauthorizedException('Invalid authorization code');
     }
 
+    const now = new Date();
     let redeemed;
     try {
-      redeemed = authorizationCode.redeem();
+      // Domain rules give the error message (used, expired)...
+      redeemed = authorizationCode.redeem(now);
     } catch (error) {
       throw new UnauthorizedException(
         error instanceof Error ? error.message : 'Invalid authorization code',
       );
     }
-    await this.authorizationCodeRepository.save(redeemed);
+    // ...but only the atomic update decides, so concurrent requests cannot both redeem.
+    if (
+      !(await this.authorizationCodeRepository.markRedeemed(
+        redeemed.codeHash,
+        now,
+      ))
+    ) {
+      throw new UnauthorizedException('Authorization code already used');
+    }
 
     const user = await this.userRepository.findById(redeemed.userId);
     if (!user) {

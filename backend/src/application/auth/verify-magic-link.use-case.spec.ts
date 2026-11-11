@@ -127,4 +127,36 @@ describe('VerifyMagicLinkUseCase', () => {
       properties: { reason: 'used' },
     });
   });
+
+  // Two concurrent clicks on the same link: exactly one session (#20).
+  it('consumes a link only once under concurrent requests', async () => {
+    const { useCase, userRepository, magicLinkTokenRepository } =
+      createUseCase();
+    await userRepository.save(
+      User.create({
+        id: 'user-1',
+        email: 'alice@example.com',
+        name: 'Alice',
+        avatarKey: null,
+        isAdmin: false,
+        createdAt: new Date(),
+      }),
+    );
+    await magicLinkTokenRepository.save(
+      MagicLinkToken.issue({
+        id: randomUUID(),
+        email: 'alice@example.com',
+        tokenHash: hashToken('raw-token'),
+      }),
+    );
+
+    const results = await Promise.allSettled([
+      useCase.execute('raw-token'),
+      useCase.execute('raw-token'),
+    ]);
+
+    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(
+      1,
+    );
+  });
 });
