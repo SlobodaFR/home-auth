@@ -5,6 +5,7 @@ import { User } from '../../domain/user/user';
 import {
   FakeConfigService,
   FakeEmailSender,
+  FakeTelemetry,
   InMemoryMagicLinkTokenRepository,
   InMemoryUserRepository,
 } from '../test/in-memory-repositories';
@@ -17,13 +18,21 @@ function createUseCase(overrides: Record<string, string> = {}) {
   const userRepository = new InMemoryUserRepository();
   const magicLinkTokenRepository = new InMemoryMagicLinkTokenRepository();
   const emailSender = new FakeEmailSender();
+  const telemetry = new FakeTelemetry();
   const useCase = new RequestMagicLinkUseCase(
     userRepository,
     magicLinkTokenRepository,
     emailSender,
     new FakeConfigService(config) as never,
+    telemetry,
   );
-  return { useCase, userRepository, magicLinkTokenRepository, emailSender };
+  return {
+    useCase,
+    userRepository,
+    magicLinkTokenRepository,
+    emailSender,
+    telemetry,
+  };
 }
 
 describe('RequestMagicLinkUseCase', () => {
@@ -44,6 +53,39 @@ describe('RequestMagicLinkUseCase', () => {
 
     expect(emailSender.sent).toHaveLength(1);
     expect(emailSender.sent[0]?.to).toBe('alice@example.com');
+  });
+
+  it('reports the outcome, identifying only known users', async () => {
+    const { useCase, userRepository, telemetry } = createUseCase();
+    await userRepository.save(
+      User.create({
+        id: 'user-1',
+        email: 'alice@example.com',
+        name: 'Alice',
+        avatarKey: null,
+        isAdmin: false,
+        createdAt: new Date(),
+      }),
+    );
+
+    await useCase.execute('unknown@example.com');
+    await useCase.execute('alice@example.com');
+
+    expect(telemetry.captured).toEqual([
+      {
+        event: {
+          name: 'magic_link_requested',
+          properties: { outcome: 'unknown' },
+        },
+      },
+      {
+        event: {
+          name: 'magic_link_requested',
+          properties: { outcome: 'sent' },
+        },
+        userId: 'user-1',
+      },
+    ]);
   });
 
   it('logs an unknown email only as its pseudonym', async () => {
@@ -130,7 +172,7 @@ describe('RequestMagicLinkUseCase', () => {
     }
 
     it('silently stops sending once 10 links were issued for the email in the last hour', async () => {
-      const { useCase, emailSender, magicLinkTokenRepository } =
+      const { useCase, emailSender, magicLinkTokenRepository, telemetry } =
         await createWithAlice();
       for (let i = 0; i < 10; i++) {
         await useCase.execute('alice@example.com');
@@ -139,6 +181,13 @@ describe('RequestMagicLinkUseCase', () => {
       await expect(
         useCase.execute('Alice@Example.com'),
       ).resolves.toBeUndefined();
+      expect(telemetry.captured.at(-1)).toEqual({
+        event: {
+          name: 'magic_link_requested',
+          properties: { outcome: 'budget_exhausted' },
+        },
+        userId: 'user-1',
+      });
 
       expect(emailSender.sent).toHaveLength(10);
       expect(

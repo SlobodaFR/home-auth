@@ -3,6 +3,7 @@ import { Client } from '../../domain/client/client';
 import { hashSecret, hashToken } from '../../domain/shared/hash';
 import { User } from '../../domain/user/user';
 import {
+  FakeTelemetry,
   FakeTokenService,
   InMemoryAuthorizationCodeRepository,
   InMemoryClientRepository,
@@ -23,15 +24,18 @@ describe('ExchangeCodeUseCase', () => {
     const refreshTokenRepository = new InMemoryRefreshTokenRepository();
     const userRepository = new InMemoryUserRepository();
     const tokenService = new FakeTokenService();
+    const telemetry = new FakeTelemetry();
     const useCase = new ExchangeCodeUseCase(
       clientRepository,
       authorizationCodeRepository,
       refreshTokenRepository,
       userRepository,
       tokenService,
+      telemetry,
     );
     return {
       useCase,
+      telemetry,
       clientRepository,
       authorizationCodeRepository,
       refreshTokenRepository,
@@ -69,6 +73,28 @@ describe('ExchangeCodeUseCase', () => {
       }),
     );
   }
+
+  it('reports the exchange with the client and grant type', async () => {
+    const deps = createUseCase();
+    await seed(deps);
+
+    await deps.useCase.execute({
+      code: RAW_CODE,
+      clientId: 'budget',
+      clientSecret: RAW_SECRET,
+      redirectUri: REDIRECT_URI,
+    });
+
+    expect(deps.telemetry.captured).toEqual([
+      {
+        event: {
+          name: 'token_exchanged',
+          properties: { client_id: 'budget', grant_type: 'authorization_code' },
+        },
+        userId: 'user-1',
+      },
+    ]);
+  });
 
   it('exchanges a valid code for an access and refresh token', async () => {
     const deps = createUseCase();

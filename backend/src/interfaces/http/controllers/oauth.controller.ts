@@ -33,6 +33,7 @@ import {
   UserInfo,
 } from '../../../application/profile/get-user-info.use-case';
 import { SessionService } from '../../../domain/auth/session.service';
+import { Telemetry } from '../../../domain/shared/telemetry';
 import { UserRepository } from '../../../domain/user/user.repository';
 import { AuthorizeQueryDto } from '../dto/authorize-query.dto';
 import { LookupUserByEmailDto } from '../dto/lookup-user-by-email.dto';
@@ -58,6 +59,7 @@ export class OAuthController {
     private readonly sessionService: SessionService,
     private readonly userRepository: UserRepository,
     private readonly config: ConfigService,
+    private readonly telemetry: Telemetry,
   ) {}
 
   @Get('authorize')
@@ -78,6 +80,10 @@ export class OAuthController {
   ): Promise<void> {
     const userId = await this.getSessionUserId(req);
     if (!userId) {
+      this.telemetry.capture({
+        name: 'authorize',
+        properties: { outcome: 'login_required' },
+      });
       const frontendUrl = this.config.get<string>(
         'FRONTEND_URL',
         'http://localhost:3000',
@@ -102,6 +108,17 @@ export class OAuthController {
           : error instanceof NotFoundException
             ? 'unknown_client'
             : 'invalid_request';
+      this.telemetry.capture(
+        {
+          name: 'authorize',
+          // Forbidden means the client exists; otherwise client_id is unverified caller input.
+          properties:
+            reason === 'forbidden'
+              ? { outcome: reason, client_id: query.client_id }
+              : { outcome: reason },
+        },
+        userId,
+      );
 
       const frontendUrl = this.config.get<string>(
         'FRONTEND_URL',
@@ -114,6 +131,13 @@ export class OAuthController {
       return;
     }
 
+    this.telemetry.capture(
+      {
+        name: 'authorize',
+        properties: { client_id: query.client_id, outcome: 'code' },
+      },
+      userId,
+    );
     const redirectUrl = new URL(query.redirect_uri);
     redirectUrl.searchParams.set('code', code);
     res.redirect(redirectUrl.toString());

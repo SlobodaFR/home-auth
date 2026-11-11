@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthorizationCodeRepository } from '../domain/auth/authorization-code.repository';
 import { MagicLinkTokenRepository } from '../domain/auth/magic-link-token.repository';
@@ -9,6 +10,7 @@ import { ClientRepository } from '../domain/client/client.repository';
 import { ClientAccessRepository } from '../domain/client-access/client-access.repository';
 import { AvatarStorage } from '../domain/shared/avatar-storage';
 import { EmailSender } from '../domain/shared/email-sender';
+import { Telemetry } from '../domain/shared/telemetry';
 import { WebhookNotifier } from '../domain/shared/webhook-notifier';
 import { UserRepository } from '../domain/user/user.repository';
 import { AccessTokenGuard } from '../interfaces/http/guards/access-token.guard';
@@ -31,6 +33,7 @@ import { TypeOrmMagicLinkTokenRepository } from './persistence/repositories/type
 import { TypeOrmRefreshTokenRepository } from './persistence/repositories/typeorm-refresh-token.repository';
 import { TypeOrmUserRepository } from './persistence/repositories/typeorm-user.repository';
 import { S3AvatarStorage } from './storage/s3-avatar-storage';
+import { createPostHogTelemetry } from './telemetry/posthog-telemetry';
 import { HttpWebhookNotifier } from './webhook/http-webhook-notifier';
 
 const ENTITIES = [
@@ -53,15 +56,32 @@ const ENTITIES = [
     RsaKeyProvider,
     { provide: UserRepository, useClass: TypeOrmUserRepository },
     { provide: ClientRepository, useClass: TypeOrmClientRepository },
-    { provide: ClientAccessRepository, useClass: TypeOrmClientAccessRepository },
-    { provide: AuthorizationCodeRepository, useClass: TypeOrmAuthorizationCodeRepository },
-    { provide: RefreshTokenRepository, useClass: TypeOrmRefreshTokenRepository },
-    { provide: MagicLinkTokenRepository, useClass: TypeOrmMagicLinkTokenRepository },
+    {
+      provide: ClientAccessRepository,
+      useClass: TypeOrmClientAccessRepository,
+    },
+    {
+      provide: AuthorizationCodeRepository,
+      useClass: TypeOrmAuthorizationCodeRepository,
+    },
+    {
+      provide: RefreshTokenRepository,
+      useClass: TypeOrmRefreshTokenRepository,
+    },
+    {
+      provide: MagicLinkTokenRepository,
+      useClass: TypeOrmMagicLinkTokenRepository,
+    },
     { provide: TokenService, useClass: JwksTokenService },
     { provide: SessionService, useClass: JwtSessionService },
     { provide: EmailSender, useClass: ResendEmailSender },
     { provide: AvatarStorage, useClass: S3AvatarStorage },
     { provide: WebhookNotifier, useClass: HttpWebhookNotifier },
+    {
+      provide: Telemetry,
+      useFactory: createPostHogTelemetry,
+      inject: [ConfigService],
+    },
     SessionAuthGuard,
     AdminGuard,
     AccessTokenGuard,
@@ -78,6 +98,7 @@ const ENTITIES = [
     EmailSender,
     AvatarStorage,
     WebhookNotifier,
+    Telemetry,
     SessionAuthGuard,
     AdminGuard,
     AccessTokenGuard,
