@@ -41,12 +41,16 @@ function createUseCase(
 /** Sender whose delivery never completes, or fails, like a slow or broken Resend. */
 class StubEmailSender extends EmailSender {
   readonly attempted: EmailMessage[] = [];
-  constructor(private readonly outcome: 'hang' | 'reject') {
+  constructor(private readonly outcome: 'hang' | 'reject' | 'throw') {
     super();
   }
 
   send(message: EmailMessage): Promise<void> {
     this.attempted.push(message);
+    if (this.outcome === 'throw') {
+      // A non-async implementation failing before it returns a promise.
+      throw new Error('boom');
+    }
     return this.outcome === 'hang'
       ? new Promise(() => undefined)
       : Promise.reject(
@@ -87,6 +91,20 @@ describe('RequestMagicLinkUseCase email delivery (#24)', () => {
       ),
     ).toBe(1);
   }, 1000);
+
+  it('also contains a sender that throws before returning a promise', async () => {
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const { useCase, userRepository } = createUseCase(
+      {},
+      new StubEmailSender('throw'),
+    );
+    await userRepository.save(ALICE());
+
+    await expect(useCase.execute('alice@example.com')).resolves.toBeUndefined();
+    await new Promise(setImmediate);
+
+    expect(error).toHaveBeenCalledTimes(1);
+  });
 
   it('logs a failed delivery without the address and without an unhandled rejection', async () => {
     const error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
