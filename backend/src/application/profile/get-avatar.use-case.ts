@@ -1,8 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AvatarStorage, StoredAvatar } from '../../domain/shared/avatar-storage';
+import {
+  AvatarStorage,
+  StoredAvatar,
+} from '../../domain/shared/avatar-storage';
 import { UserRepository } from '../../domain/user/user.repository';
 
-export type AvatarResult = { kind: 'stored'; avatar: StoredAvatar } | { kind: 'fallback'; displayName: string };
+export type AvatarResult =
+  | { kind: 'stored'; avatar: StoredAvatar }
+  | { kind: 'fallback'; displayName: string };
 
 @Injectable()
 export class GetAvatarUseCase {
@@ -24,6 +29,17 @@ export class GetAvatarUseCase {
       }
     }
 
-    return { kind: 'fallback', displayName: user.name || user.email };
+    return {
+      kind: 'fallback',
+      displayName: toAvatarName(user.name) || toAvatarName(user.email),
+    };
   }
+}
+
+/** Generated avatars take the first character of each word: punctuation would end up as an initial. */
+function toAvatarName(value: string): string {
+  return value
+    .replace(/[^\p{L}\p{M}\p{N}\s]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }

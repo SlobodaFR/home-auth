@@ -1,5 +1,8 @@
 import { User } from '../../domain/user/user';
-import { FakeAvatarStorage, InMemoryUserRepository } from '../test/in-memory-repositories';
+import {
+  FakeAvatarStorage,
+  InMemoryUserRepository,
+} from '../test/in-memory-repositories';
 import { GetAvatarUseCase } from './get-avatar.use-case';
 
 describe('GetAvatarUseCase', () => {
@@ -40,11 +43,17 @@ describe('GetAvatarUseCase', () => {
         createdAt: new Date(),
       }),
     );
-    await avatarStorage.upload('user-1', { contentType: 'image/png', body: Buffer.from('image') });
+    await avatarStorage.upload('user-1', {
+      contentType: 'image/png',
+      body: Buffer.from('image'),
+    });
 
     const result = await useCase.execute('user-1');
 
-    expect(result).toEqual({ kind: 'stored', avatar: { contentType: 'image/png', body: Buffer.from('image') } });
+    expect(result).toEqual({
+      kind: 'stored',
+      avatar: { contentType: 'image/png', body: Buffer.from('image') },
+    });
   });
 
   it('falls back to the avatar key lookup miss', async () => {
@@ -65,8 +74,36 @@ describe('GetAvatarUseCase', () => {
     expect(result).toEqual({ kind: 'fallback', displayName: 'Alice' });
   });
 
+  it.each([
+    ['Maison (test)', 'alice@example.com', 'Maison test'],
+    ['Capucine CAPOËN', 'alice@example.com', 'Capucine CAPOËN'],
+    ['(—)', 'alice@example.com', 'aliceexamplecom'],
+  ])(
+    'keeps only letters, digits and spaces of %s for the generated avatar',
+    async (name, email, displayName) => {
+      const { useCase, userRepository } = createUseCase();
+      await userRepository.save(
+        User.create({
+          id: 'user-1',
+          email,
+          name,
+          avatarKey: null,
+          isAdmin: false,
+          createdAt: new Date(),
+        }),
+      );
+
+      expect(await useCase.execute('user-1')).toEqual({
+        kind: 'fallback',
+        displayName,
+      });
+    },
+  );
+
   it('rejects an unknown user', async () => {
     const { useCase } = createUseCase();
-    await expect(useCase.execute('unknown')).rejects.toThrow('User unknown not found');
+    await expect(useCase.execute('unknown')).rejects.toThrow(
+      'User unknown not found',
+    );
   });
 });
