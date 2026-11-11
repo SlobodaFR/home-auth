@@ -12,4 +12,6 @@ export abstract class MagicLinkTokenRepository {
    * the budget window (1 hour), or the budget silently shrinks.
    */
   abstract countIssuedSince(email: string, since: Date): Promise<number>;
+  /** Deletes the tokens whose expiry is before `date`; returns how many were deleted. */
+  abstract deleteExpiredBefore(date: Date): Promise<number>;
 }

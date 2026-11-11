@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import {
   MAGIC_LINK_TOKEN_TTL_MS,
   MagicLinkToken,
@@ -42,6 +42,11 @@ export class TypeOrmMagicLinkTokenRepository extends MagicLinkTokenRepository {
         ),
       },
     });
+  }
+
+  async deleteExpiredBefore(date: Date): Promise<number> {
+    const result = await this.repository.delete({ expiresAt: LessThan(date) });
+    return result.affected ?? 0;
   }
 
   private toDomain(row: MagicLinkTokenOrmEntity): MagicLinkToken {

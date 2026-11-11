@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import { AuthorizationCode } from '../../../domain/auth/authorization-code';
 import { AuthorizationCodeRepository } from '../../../domain/auth/authorization-code.repository';
 import { AuthorizationCodeOrmEntity } from '../entities/authorization-code.orm-entity';
@@ -28,5 +28,10 @@ export class TypeOrmAuthorizationCodeRepository extends AuthorizationCodeReposit
   async findByCodeHash(codeHash: string): Promise<AuthorizationCode | null> {
     const row = await this.repository.findOne({ where: { codeHash } });
     return row ? AuthorizationCode.fromPersistence(row) : null;
+  }
+
+  async deleteExpiredBefore(date: Date): Promise<number> {
+    const result = await this.repository.delete({ expiresAt: LessThan(date) });
+    return result.affected ?? 0;
   }
 }

@@ -132,6 +132,17 @@ export class InMemoryAuthorizationCodeRepository extends AuthorizationCodeReposi
   async findByCodeHash(codeHash: string): Promise<AuthorizationCode | null> {
     return this.codes.get(codeHash) ?? null;
   }
+
+  async deleteExpiredBefore(date: Date): Promise<number> {
+    let deleted = 0;
+    for (const [key, code] of [...this.codes]) {
+      if (code.expiresAt.getTime() < date.getTime()) {
+        this.codes.delete(key);
+        deleted += 1;
+      }
+    }
+    return deleted;
+  }
 }
 
 export class InMemoryRefreshTokenRepository extends RefreshTokenRepository {
@@ -164,6 +175,17 @@ export class InMemoryRefreshTokenRepository extends RefreshTokenRepository {
       }
     }
   }
+
+  async deleteExpiredBefore(date: Date): Promise<number> {
+    let deleted = 0;
+    for (const [key, token] of [...this.tokens]) {
+      if (token.expiresAt.getTime() < date.getTime()) {
+        this.tokens.delete(key);
+        deleted += 1;
+      }
+    }
+    return deleted;
+  }
 }
 
 export class InMemoryMagicLinkTokenRepository extends MagicLinkTokenRepository {
@@ -182,6 +204,17 @@ export class InMemoryMagicLinkTokenRepository extends MagicLinkTokenRepository {
       (token) =>
         token.email === email && token.issuedAt.getTime() >= since.getTime(),
     ).length;
+  }
+
+  async deleteExpiredBefore(date: Date): Promise<number> {
+    let deleted = 0;
+    for (const [key, token] of [...this.tokens]) {
+      if (token.expiresAt.getTime() < date.getTime()) {
+        this.tokens.delete(key);
+        deleted += 1;
+      }
+    }
+    return deleted;
   }
 }
 

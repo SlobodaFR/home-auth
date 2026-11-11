@@ -2,7 +2,10 @@ import { randomUUID } from 'crypto';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthorizationCode } from '../../../domain/auth/authorization-code';
-import { MagicLinkToken } from '../../../domain/auth/magic-link-token';
+import {
+  LINK_BUDGET_WINDOW_MS,
+  MagicLinkToken,
+} from '../../../domain/auth/magic-link-token';
 import { RefreshToken } from '../../../domain/auth/refresh-token';
 import { Client } from '../../../domain/client/client';
 import { ClientAccess } from '../../../domain/client-access/client-access';
@@ -262,6 +265,72 @@ describe('TypeOrmMagicLinkTokenRepository', () => {
       ),
     ).toBe(2);
 
+    await moduleRef.close();
+  });
+});
+
+describe('purge of expired tokens (#29)', () => {
+  const HOUR = 60 * 60 * 1000;
+  const now = Date.now();
+
+  it('deletes authorization codes that expired before the date, keeps the others', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmAuthorizationCodeRepository);
+    const issue = (codeHash: string, issuedAt: number) =>
+      AuthorizationCode.issue({
+        codeHash,
+        userId: 'user-1',
+        clientId: 'budget',
+        redirectUri: 'https://budget.example.com/cb',
+        issuedAt: new Date(issuedAt),
+      });
+    await repository.save(issue('old', now - 3 * HOUR));
+    await repository.save(issue('recent', now));
+
+    expect(await repository.deleteExpiredBefore(new Date(now - HOUR))).toBe(1);
+    expect(await repository.findByCodeHash('old')).toBeNull();
+    expect(await repository.findByCodeHash('recent')).not.toBeNull();
+    await moduleRef.close();
+  });
+
+  it('deletes refresh tokens that expired before the date, keeps the others', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmRefreshTokenRepository);
+    const issue = (id: string, createdAt: number) =>
+      RefreshToken.issue({
+        id,
+        tokenHash: `hash-${id}`,
+        userId: 'user-1',
+        clientId: 'budget',
+        createdAt: new Date(createdAt),
+      });
+    await repository.save(issue('expired', now - 31 * 24 * HOUR));
+    await repository.save(issue('valid', now));
+
+    expect(await repository.deleteExpiredBefore(new Date(now))).toBe(1);
+    expect(await repository.findByTokenHash('hash-expired')).toBeNull();
+    expect(await repository.findByTokenHash('hash-valid')).not.toBeNull();
+    await moduleRef.close();
+  });
+
+  it('deletes magic links that expired before the date without shrinking the per-email budget', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmMagicLinkTokenRepository);
+    const issue = (n: number, issuedAt: number) =>
+      MagicLinkToken.issue({
+        id: `t${n.toString()}`,
+        email: 'a@b.c',
+        tokenHash: `h${n.toString()}`,
+        issuedAt: new Date(issuedAt),
+      });
+    await repository.save(issue(1, now - 10 * 60 * 1000));
+    await repository.save(issue(2, now - 40 * 60 * 1000));
+    await repository.save(issue(3, now - 2 * HOUR));
+    const windowStart = new Date(now - LINK_BUDGET_WINDOW_MS);
+
+    expect(await repository.deleteExpiredBefore(windowStart)).toBe(1);
+    expect(await repository.countIssuedSince('a@b.c', windowStart)).toBe(2);
+    expect(await repository.findByTokenHash('h3')).toBeNull();
     await moduleRef.close();
   });
 });
