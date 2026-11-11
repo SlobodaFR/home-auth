@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { buildCorsOptions } from './interfaces/http/cors';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -23,10 +24,12 @@ async function bootstrap(): Promise<void> {
   }
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.use(cookieParser());
-  app.enableCors({
-    origin: process.env.FRONTEND_URL ?? true,
-    credentials: true,
-  });
+  app.enableCors(
+    buildCorsOptions({
+      authBaseUrl: process.env.AUTH_BASE_URL ?? 'http://localhost:3000',
+      frontendUrl: process.env.FRONTEND_URL,
+    }),
+  );
 
   const config = new DocumentBuilder()
     .setTitle('Auth Service')
