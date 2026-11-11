@@ -48,7 +48,11 @@ describe('UpdateProfileUseCase', () => {
     await userRepository.save(baseUser());
     const useCase = new UpdateProfileUseCase(userRepository);
 
-    await useCase.execute('user-1', { name: 'Alice Smith', countryCode: 'US', locale: 'en-US' });
+    await useCase.execute('user-1', {
+      name: 'Alice Smith',
+      countryCode: 'US',
+      locale: 'en-US',
+    });
 
     const updated = await userRepository.findById('user-1');
     expect(updated?.name).toBe('Alice Smith');
@@ -68,6 +72,8 @@ describe('UpdateProfileUseCase', () => {
 
   it('rejects an unknown user', async () => {
     const useCase = new UpdateProfileUseCase(new InMemoryUserRepository());
-    await expect(useCase.execute('unknown', { name: 'Name' })).rejects.toThrow('User unknown not found');
+    await expect(useCase.execute('unknown', { name: 'Name' })).rejects.toThrow(
+      'User unknown not found',
+    );
   });
 });

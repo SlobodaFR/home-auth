@@ -7,7 +7,9 @@ const TIMEOUT_MS = 2000;
 export class HttpWebhookNotifier extends WebhookNotifier {
   async notify(url: string, payload: Record<string, unknown>): Promise<void> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => { controller.abort(); }, TIMEOUT_MS);
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, TIMEOUT_MS);
     try {
       const response = await fetch(url, {
         method: 'POST',

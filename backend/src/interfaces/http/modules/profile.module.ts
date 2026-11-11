@@ -9,6 +9,11 @@ import { ProfileController } from '../controllers/profile.controller';
 
 @Module({
   controllers: [ProfileController, AvatarsController, MeController],
-  providers: [GetUserInfoUseCase, UpdateProfileUseCase, UploadAvatarUseCase, GetAvatarUseCase],
+  providers: [
+    GetUserInfoUseCase,
+    UpdateProfileUseCase,
+    UploadAvatarUseCase,
+    GetAvatarUseCase,
+  ],
 })
 export class ProfileModule {}

@@ -6,7 +6,10 @@ export class RequestMagicLinkDto {
   @IsEmail()
   email!: string;
 
-  @ApiPropertyOptional({ description: 'Relative path to return to after sign-in (e.g. /authorize?...)' })
+  @ApiPropertyOptional({
+    description:
+      'Relative path to return to after sign-in (e.g. /authorize?...)',
+  })
   @IsOptional()
   @IsString()
   redirect?: string;

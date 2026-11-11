@@ -16,7 +16,9 @@ const TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export class RefreshToken {
   private constructor(private readonly props: RefreshTokenProps) {}
 
-  static issue(props: Omit<RefreshTokenProps, 'expiresAt'> & { issuedAt?: Date }): RefreshToken {
+  static issue(
+    props: Omit<RefreshTokenProps, 'expiresAt'> & { issuedAt?: Date },
+  ): RefreshToken {
     const issuedAt = props.issuedAt ?? props.createdAt;
     return new RefreshToken({
       id: props.id,

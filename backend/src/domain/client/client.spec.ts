@@ -13,7 +13,9 @@ describe('Client', () => {
   it('creates a valid client', () => {
     const client = Client.create(baseProps);
     expect(client.id).toBe('budget');
-    expect(client.hasRedirectUri('https://budget.example.com/auth/callback')).toBe(true);
+    expect(
+      client.hasRedirectUri('https://budget.example.com/auth/callback'),
+    ).toBe(true);
     expect(client.hasRedirectUri('https://evil.example.com')).toBe(false);
   });
 
@@ -30,11 +32,15 @@ describe('Client', () => {
   });
 
   it('rejects an invalid redirect URI', () => {
-    expect(() => Client.create({ ...baseProps, redirectUris: ['not-a-url'] })).toThrow('Invalid URL: not-a-url');
+    expect(() =>
+      Client.create({ ...baseProps, redirectUris: ['not-a-url'] }),
+    ).toThrow('Invalid URL: not-a-url');
   });
 
   it('rejects an invalid logout webhook URL', () => {
-    expect(() => Client.create({ ...baseProps, logoutWebhookUrl: 'not-a-url' })).toThrow('Invalid URL: not-a-url');
+    expect(() =>
+      Client.create({ ...baseProps, logoutWebhookUrl: 'not-a-url' }),
+    ).toThrow('Invalid URL: not-a-url');
   });
 
   it('update returns a new Client with merged fields', () => {

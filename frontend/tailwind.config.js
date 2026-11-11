@@ -47,7 +47,10 @@ export default {
       },
       fontSize: {
         caption: ['14px', { lineHeight: '1.5', fontWeight: '400' }],
-        'label-sm': ['12px', { lineHeight: '1', letterSpacing: '0.05em', fontWeight: '600' }],
+        'label-sm': [
+          '12px',
+          { lineHeight: '1', letterSpacing: '0.05em', fontWeight: '600' },
+        ],
         'body-md': ['16px', { lineHeight: '1.5', fontWeight: '400' }],
         'body-strong': ['16px', { lineHeight: '1.5', fontWeight: '500' }],
         'button-md': ['15px', { lineHeight: '1', fontWeight: '600' }],

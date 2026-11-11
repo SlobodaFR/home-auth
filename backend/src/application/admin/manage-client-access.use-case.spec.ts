@@ -45,8 +45,15 @@ describe('manage client access use-cases', () => {
   it('grants, lists, and revokes client access', async () => {
     const deps = createDeps();
     await seed(deps);
-    const grant = new GrantClientAccessUseCase(deps.clientRepository, deps.userRepository, deps.clientAccessRepository);
-    const list = new ListClientAccessUseCase(deps.clientRepository, deps.clientAccessRepository);
+    const grant = new GrantClientAccessUseCase(
+      deps.clientRepository,
+      deps.userRepository,
+      deps.clientAccessRepository,
+    );
+    const list = new ListClientAccessUseCase(
+      deps.clientRepository,
+      deps.clientAccessRepository,
+    );
     const revoke = new RevokeClientAccessUseCase(deps.clientAccessRepository);
 
     await grant.execute('budget', 'user-1');
@@ -59,23 +66,40 @@ describe('manage client access use-cases', () => {
   it('rejects granting access for an unknown client', async () => {
     const deps = createDeps();
     await seed(deps);
-    const grant = new GrantClientAccessUseCase(deps.clientRepository, deps.userRepository, deps.clientAccessRepository);
+    const grant = new GrantClientAccessUseCase(
+      deps.clientRepository,
+      deps.userRepository,
+      deps.clientAccessRepository,
+    );
 
-    await expect(grant.execute('unknown', 'user-1')).rejects.toThrow('Client unknown not found');
+    await expect(grant.execute('unknown', 'user-1')).rejects.toThrow(
+      'Client unknown not found',
+    );
   });
 
   it('rejects granting access for an unknown user', async () => {
     const deps = createDeps();
     await seed(deps);
-    const grant = new GrantClientAccessUseCase(deps.clientRepository, deps.userRepository, deps.clientAccessRepository);
+    const grant = new GrantClientAccessUseCase(
+      deps.clientRepository,
+      deps.userRepository,
+      deps.clientAccessRepository,
+    );
 
-    await expect(grant.execute('budget', 'unknown')).rejects.toThrow('User unknown not found');
+    await expect(grant.execute('budget', 'unknown')).rejects.toThrow(
+      'User unknown not found',
+    );
   });
 
   it('rejects listing access for an unknown client', async () => {
     const deps = createDeps();
-    const list = new ListClientAccessUseCase(deps.clientRepository, deps.clientAccessRepository);
+    const list = new ListClientAccessUseCase(
+      deps.clientRepository,
+      deps.clientAccessRepository,
+    );
 
-    await expect(list.execute('unknown')).rejects.toThrow('Client unknown not found');
+    await expect(list.execute('unknown')).rejects.toThrow(
+      'Client unknown not found',
+    );
   });
 });

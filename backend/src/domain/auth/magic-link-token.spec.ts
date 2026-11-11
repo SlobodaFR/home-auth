@@ -31,7 +31,9 @@ describe('MagicLinkToken', () => {
       consumedAt: new Date('2024-01-01T00:01:00Z'),
     });
 
-    expect(() => token.consume(new Date('2024-01-01T00:02:00Z'))).toThrow('Magic link already used');
+    expect(() => token.consume(new Date('2024-01-01T00:02:00Z'))).toThrow(
+      'Magic link already used',
+    );
   });
 
   it('rejects consuming an expired token', () => {
@@ -41,6 +43,8 @@ describe('MagicLinkToken', () => {
       consumedAt: null,
     });
 
-    expect(() => token.consume(new Date('2024-01-01T00:15:01Z'))).toThrow('Magic link expired');
+    expect(() => token.consume(new Date('2024-01-01T00:15:01Z'))).toThrow(
+      'Magic link expired',
+    );
   });
 });
