@@ -32,6 +32,14 @@ describe('hashSecret / verifySecret', () => {
     );
   });
 
+  // A digest of the wrong length must be a plain mismatch (401), never a timingSafeEqual RangeError (500).
+  it.each([
+    ['odd-length hex', 'abcd:abc'],
+    ['a valid hex digest that is too short', `abcd:${'ab'.repeat(10)}`],
+  ])('rejects a stored hash with %s', async (_label, stored) => {
+    await expect(verifySecret('s3cret', stored)).resolves.toBe(false);
+  });
+
   it('returns false for a null stored hash (unknown client)', async () => {
     await expect(verifySecret('x', null)).resolves.toBe(false);
   });
