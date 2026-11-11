@@ -9,10 +9,12 @@ function sender(env: Record<string, string>) {
 }
 
 describe('ResendEmailSender', () => {
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it('does not log the recipient when the API key is missing', async () => {
-    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const warn = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
 
     await sender({}).send(MESSAGE);
 
@@ -21,7 +23,7 @@ describe('ResendEmailSender', () => {
   });
 
   it('keeps only the status and the Resend error name when the API rejects', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(
+    vi.spyOn(global, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
           name: 'validation_error',
@@ -42,11 +44,9 @@ describe('ResendEmailSender', () => {
   });
 
   it('reports an unparseable error body without echoing it', async () => {
-    jest
-      .spyOn(global, 'fetch')
-      .mockResolvedValue(
-        new Response('<html>x@example.com</html>', { status: 502 }),
-      );
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response('<html>x@example.com</html>', { status: 502 }),
+    );
 
     await expect(
       sender({ RESEND_API_KEY: 're_test' }).send(MESSAGE),

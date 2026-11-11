@@ -30,7 +30,8 @@ class FakeClient implements PostHogClient {
 
 describe('PostHogTelemetry', () => {
   it('is disabled without POSTHOG_API_KEY: no client is created', () => {
-    const factory = jest.fn();
+    const factory =
+      vi.fn<(apiKey: string, options: unknown) => PostHogClient>();
 
     const telemetry = createPostHogTelemetry(
       new ConfigService({ PSEUDONYM_SECRET: SECRET }),
@@ -45,7 +46,9 @@ describe('PostHogTelemetry', () => {
   });
 
   it('creates an EU, geoip-free client when a key is set', () => {
-    const factory = jest.fn().mockReturnValue(new FakeClient());
+    const factory = vi
+      .fn<(apiKey: string, options: unknown) => PostHogClient>()
+      .mockReturnValue(new FakeClient());
 
     createPostHogTelemetry(
       new ConfigService({

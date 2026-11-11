@@ -70,7 +70,7 @@ const ALICE = () =>
   });
 
 describe('RequestMagicLinkUseCase email delivery (#24)', () => {
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   // A known email must not take longer than an unknown one: delivery runs in the background.
   it('returns without waiting for the email to be delivered', async () => {
@@ -93,7 +93,9 @@ describe('RequestMagicLinkUseCase email delivery (#24)', () => {
   }, 1000);
 
   it('also contains a sender that throws before returning a promise', async () => {
-    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const error = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
     const { useCase, userRepository } = createUseCase(
       {},
       new StubEmailSender('throw'),
@@ -107,8 +109,10 @@ describe('RequestMagicLinkUseCase email delivery (#24)', () => {
   });
 
   it('logs a failed delivery without the address and without an unhandled rejection', async () => {
-    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
-    const unhandled = jest.fn();
+    const error = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    const unhandled = vi.fn<(reason: unknown) => void>();
     process.on('unhandledRejection', unhandled);
     const { useCase, userRepository } = createUseCase(
       {},
@@ -190,7 +194,9 @@ describe('RequestMagicLinkUseCase', () => {
   });
 
   it('logs an unknown email only as its pseudonym', async () => {
-    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    const log = vi
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => undefined);
     const { useCase } = createUseCase();
 
     await useCase.execute('Unknown@Example.com');

@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import { Logger } from '@nestjs/common';
 import { PurgeExpiredTokensUseCase } from '../../application/auth/purge-expired-tokens.use-case';
 import { TokenPurgeScheduler } from './token-purge.scheduler';
@@ -6,13 +7,13 @@ const SIX_HOURS = 6 * 60 * 60 * 1000;
 const flush = () => Promise.resolve().then(() => Promise.resolve());
 
 describe('TokenPurgeScheduler', () => {
-  let execute: jest.Mock;
+  let execute: Mock;
   let scheduler: TokenPurgeScheduler;
 
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.spyOn(Logger.prototype, 'log').mockImplementation();
-    execute = jest.fn().mockResolvedValue({
+    vi.useFakeTimers();
+    vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    execute = vi.fn<PurgeExpiredTokensUseCase['execute']>().mockResolvedValue({
       magicLinks: 1,
       authorizationCodes: 0,
       refreshTokens: 0,
@@ -24,8 +25,8 @@ describe('TokenPurgeScheduler', () => {
 
   afterEach(() => {
     scheduler.onApplicationShutdown();
-    jest.useRealTimers();
-    jest.restoreAllMocks();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('purges once at startup, then every six hours', async () => {
@@ -33,7 +34,7 @@ describe('TokenPurgeScheduler', () => {
     await flush();
     expect(execute).toHaveBeenCalledTimes(1);
 
-    jest.advanceTimersByTime(SIX_HOURS);
+    vi.advanceTimersByTime(SIX_HOURS);
     await flush();
     expect(execute).toHaveBeenCalledTimes(2);
   });
@@ -42,13 +43,15 @@ describe('TokenPurgeScheduler', () => {
     scheduler.onApplicationBootstrap();
     scheduler.onApplicationShutdown();
 
-    jest.advanceTimersByTime(3 * SIX_HOURS);
+    vi.advanceTimersByTime(3 * SIX_HOURS);
     await flush();
     expect(execute).toHaveBeenCalledTimes(1);
   });
 
   it('logs a failed purge without propagating it', async () => {
-    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const error = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
     execute.mockRejectedValueOnce(
       Object.assign(new Error('database is locked'), { code: 'SQLITE_BUSY' }),
     );

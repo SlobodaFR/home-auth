@@ -1,11 +1,7 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "packageManager": "npm",
-  "testRunner": "jest",
-  "jest": {
-    "projectType": "custom",
-    "configFile": "package.json"
-  },
+  "testRunner": "vitest",
   "mutate": [
     "src/domain/**/*.ts",
     "src/application/**/*.ts",
@@ -18,5 +14,8 @@
     "high": 95,
     "low": 85,
     "break": 80
+  },
+  "vitest": {
+    "configFile": "vitest.config.mts"
   }
 }

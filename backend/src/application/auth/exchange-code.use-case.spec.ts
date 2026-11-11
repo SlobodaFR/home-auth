@@ -179,7 +179,7 @@ describe('ExchangeCodeUseCase', () => {
   // Same cost as a known client: response time must not reveal which client ids exist.
   it('runs the secret check even when the client is unknown', async () => {
     const deps = createUseCase();
-    const verify = jest.spyOn(hash, 'verifySecret');
+    const verify = vi.spyOn(hash, 'verifySecret');
 
     await expect(
       deps.useCase.execute({

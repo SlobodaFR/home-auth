@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "import", "unicorn", "react", "jest"],
+  "plugins": ["typescript", "import", "unicorn", "react", "vitest"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
@@ -41,14 +41,14 @@
     "typescript/no-extraneous-class": "off",
     "eslint/no-useless-constructor": "off",
     "unicorn/consistent-function-scoping": "off",
-    "jest/expect-expect": [
+    "react/set-state-in-effect": "off",
+    "react/immutability": "off",
+    "vitest/expect-expect": [
       "error",
       {
         "assertFunctionNames": ["expect", "request.**.expect"]
       }
     ],
-    "react/set-state-in-effect": "off",
-    "react/immutability": "off",
     "react/hooks": "error"
   },
   "overrides": [

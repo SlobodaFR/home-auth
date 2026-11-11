@@ -42,14 +42,14 @@ frontend/src/
 - Tout nouveau comportement (domaine + application) commence par un test qui échoue.
 - `domain/` et `application/` : couverture quasi totale attendue, tests rapides (pas de DB/réseau).
 - `infrastructure/` : tests d'intégration ciblés (TypeORM avec SQLite en mémoire, mocks MinIO/Resend).
-- Commande: `npm test` (backend Jest + frontend Vitest), `npm run test:backend`, `npm run test:frontend`.
+- Commande: `npm test` (Vitest, backend et frontend), `npm run test:backend`, `npm run test:frontend`.
 
 ## Qualité de code
 
 ### Oxlint + Oxfmt
 
 - Oxlint (`.oxlintrc.json`) avec règles type-aware (`oxlint-tsgolint`) : promesses, appels `any`,
-  conditions inutiles, imports cycliques ou dupliqués, règles React et Jest.
+  conditions inutiles, imports cycliques ou dupliqués, règles React et Vitest.
 - Oxfmt (`.oxfmtrc.json`) pour le formatage : `singleQuote`, `trailingComma: 'all'`, 80 colonnes.
 - Commandes : `npm run lint`, `npm run lint:fix`, `npm run format`, `npm run format:check` (vérifiés en CI).
 - Aucune règle désactivée inline (`// oxlint-disable`) sans justification en commentaire.
