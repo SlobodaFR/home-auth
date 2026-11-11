@@ -16,7 +16,9 @@ export interface RandomStringOptions {
 }
 
 /** Fills the array with cryptographically secure random 32-bit values (Web Crypto compatible). */
-export type RandomSource = (array: Uint32Array) => Uint32Array;
+export type RandomSource = (
+  array: Uint32Array<ArrayBuffer>,
+) => Uint32Array<ArrayBuffer>;
 
 const UINT32_RANGE = 0x1_0000_0000;
 
