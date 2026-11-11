@@ -72,7 +72,7 @@ export function Header() {
           </div>
         )}
       </div>
-      {user && (
+      {links.length > 1 && (
         <nav
           aria-label="Navigation principale"
           className="md:hidden flex items-center gap-lg h-12 px-margin-mobile overflow-x-auto whitespace-nowrap border-t border-hairline"
