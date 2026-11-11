@@ -86,7 +86,8 @@ export class AuthorizationCode {
     if (this.props.codeChallenge === null) {
       return verifier === undefined;
     }
-    if (verifier === undefined) {
+    // Runtime guard: anything but a string (e.g. JSON null) is a mismatch, never a crash.
+    if (typeof verifier !== 'string') {
       return false;
     }
     const expected = Buffer.from(this.props.codeChallenge);

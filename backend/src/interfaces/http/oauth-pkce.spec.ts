@@ -174,4 +174,20 @@ describe('OAuth state and PKCE (HTTP)', () => {
 
     expect(exchange).not.toHaveBeenCalled();
   });
+
+  it('answers 400 for a null code_verifier', async () => {
+    await request(app.getHttpServer())
+      .post('/token')
+      .send({
+        grant_type: 'authorization_code',
+        client_id: 'budget',
+        client_secret: 's',
+        code: 'c',
+        redirect_uri: REDIRECT,
+        code_verifier: null,
+      })
+      .expect(400);
+
+    expect(exchange).not.toHaveBeenCalled();
+  });
 });

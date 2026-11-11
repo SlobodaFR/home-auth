@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  ValidateIf,
 } from 'class-validator';
 import { PKCE_VALUE_PATTERN } from './authorize-query.dto';
 
@@ -43,7 +44,9 @@ export class TokenRequestDto {
     description:
       'PKCE verifier (required when /authorize received a code_challenge)',
   })
-  @IsOptional()
+  // Not @IsOptional: it would let null through to the domain.
+  @ValidateIf((dto: TokenRequestDto) => dto.code_verifier !== undefined)
+  @IsString()
   @Matches(PKCE_VALUE_PATTERN)
   code_verifier?: string;
 

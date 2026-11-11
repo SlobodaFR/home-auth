@@ -81,6 +81,12 @@ describe('AuthorizationCode PKCE', () => {
   });
 
   // RFC 9700 §4.8.1: a verifier without a challenge means the challenge was stripped (downgrade).
+  it('refuses a non-string verifier instead of throwing', () => {
+    expect(issue(CHALLENGE).matchesVerifier(null as unknown as string)).toBe(
+      false,
+    );
+  });
+
   it('refuses a verifier for a code issued without challenge', () => {
     expect(issue().matchesVerifier(VERIFIER)).toBe(false);
   });
