@@ -18,7 +18,7 @@ const PNG = Buffer.from([
   0x0a,
   0x1a,
   0x0a,
-  ...new Array<number>(1024).fill(0),
+  ...Array.from({ length: 1024 }, () => 0),
 ]);
 
 describe('POST /profile/avatar (upload limits)', () => {

@@ -46,20 +46,17 @@ frontend/src/
 
 ## Qualité de code
 
-### ESLint + Prettier
+### Oxlint + Oxfmt
 
-- ESLint avec `@typescript-eslint` (config `strict-type-checked` + `stylistic-type-checked`), plus
-  `eslint-plugin-import` (ordre des imports) et `eslint-config-prettier` (désactive les règles de style
-  qui entrent en conflit avec Prettier).
-- Prettier pour le formatage (config par défaut, `singleQuote: true`, `trailingComma: 'all'`).
-- Commandes: `npm run lint`, `npm run format`.
-- Aucune règle ESLint désactivée inline (`// eslint-disable`) sans justification en commentaire.
+- Oxlint (`.oxlintrc.json`) avec règles type-aware (`oxlint-tsgolint`) : promesses, appels `any`,
+  conditions inutiles, imports cycliques ou dupliqués, règles React et Jest.
+- Oxfmt (`.oxfmtrc.json`) pour le formatage : `singleQuote`, `trailingComma: 'all'`, 80 colonnes.
+- Commandes : `npm run lint`, `npm run lint:fix`, `npm run format`, `npm run format:check` (vérifiés en CI).
+- Aucune règle désactivée inline (`// oxlint-disable`) sans justification en commentaire.
 
 ### Husky + lint-staged
 
-- Hook `pre-commit` (Husky) exécute `lint-staged` :
-  - `*.{ts,tsx}` → `eslint --fix` puis `prettier --write`
-  - `*.{json,md,yml,yaml}` → `prettier --write`
+- Hook `pre-commit` (Husky) exécute `lint-staged` : `oxfmt` sur les fichiers indexés.
 - Hook `pre-push` : lance `npm test` (échec bloquant).
 
 ### Commits conventionnels

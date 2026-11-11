@@ -79,8 +79,10 @@ describe('Rate limiting (HTTP)', () => {
       await requestLink(`2001:db8:1:2::${i.toString(16)}`, i).expect(204);
     }
 
-    await requestLink('2001:db8:1:2:ffff::1').expect(429);
-    await requestLink('2001:db8:1:3::1').expect(204);
+    const sameSubnet = await requestLink('2001:db8:1:2:ffff::1');
+    const otherSubnet = await requestLink('2001:db8:1:3::1');
+    expect(sameSubnet.status).toBe(429);
+    expect(otherSubnet.status).toBe(204);
   });
 
   it('ignores X-Forwarded-For when no proxy is trusted', async () => {
@@ -89,6 +91,7 @@ describe('Rate limiting (HTTP)', () => {
       await requestLink(`198.51.100.${String(i)}`, i).expect(204);
     }
 
-    await requestLink('198.51.100.200').expect(429);
+    const blocked = await requestLink('198.51.100.200');
+    expect(blocked.status).toBe(429);
   });
 });
