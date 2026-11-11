@@ -9,4 +9,6 @@ export abstract class RefreshTokenRepository {
   abstract findAllForUser(userId: string): Promise<RefreshToken[]>;
   abstract deleteById(id: string): Promise<void>;
   abstract deleteAllForUser(userId: string): Promise<void>;
+  /** Deletes the tokens whose expiry is before `date`; returns how many were deleted. */
+  abstract deleteExpiredBefore(date: Date): Promise<number>;
 }

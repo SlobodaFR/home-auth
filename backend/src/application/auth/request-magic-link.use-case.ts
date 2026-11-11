@@ -1,7 +1,10 @@
 import { randomBytes, randomUUID } from 'crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MagicLinkToken } from '../../domain/auth/magic-link-token';
+import {
+  LINK_BUDGET_WINDOW_MS,
+  MagicLinkToken,
+} from '../../domain/auth/magic-link-token';
 import { MagicLinkTokenRepository } from '../../domain/auth/magic-link-token.repository';
 import { EmailMessage, EmailSender } from '../../domain/shared/email-sender';
 import { hashToken } from '../../domain/shared/hash';
@@ -18,7 +21,6 @@ import { buildMagicLinkEmailHtml } from '../../infrastructure/email/templates/ma
  * attacker cannot turn it into a visible lockout of the victim.
  */
 const MAX_LINKS_PER_EMAIL = 10;
-const LINK_BUDGET_WINDOW_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class RequestMagicLinkUseCase {

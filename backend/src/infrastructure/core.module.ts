@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { PurgeExpiredTokensUseCase } from '../application/auth/purge-expired-tokens.use-case';
 import { AuthorizationCodeRepository } from '../domain/auth/authorization-code.repository';
 import { MagicLinkTokenRepository } from '../domain/auth/magic-link-token.repository';
 import { RefreshTokenRepository } from '../domain/auth/refresh-token.repository';
@@ -33,6 +34,7 @@ import { TypeOrmClientRepository } from './persistence/repositories/typeorm-clie
 import { TypeOrmMagicLinkTokenRepository } from './persistence/repositories/typeorm-magic-link-token.repository';
 import { TypeOrmRefreshTokenRepository } from './persistence/repositories/typeorm-refresh-token.repository';
 import { TypeOrmUserRepository } from './persistence/repositories/typeorm-user.repository';
+import { TokenPurgeScheduler } from './scheduling/token-purge.scheduler';
 import { S3AvatarStorage } from './storage/s3-avatar-storage';
 import { createPostHogTelemetry } from './telemetry/posthog-telemetry';
 import { HttpWebhookNotifier } from './webhook/http-webhook-notifier';
@@ -84,6 +86,8 @@ const ENTITIES = [
       inject: [ConfigService],
     },
     RuntimeHealthMonitor,
+    PurgeExpiredTokensUseCase,
+    TokenPurgeScheduler,
     SessionAuthGuard,
     AdminGuard,
     AccessTokenGuard,

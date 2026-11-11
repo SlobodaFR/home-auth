@@ -7,6 +7,8 @@ export interface MagicLinkTokenProps {
 }
 
 export const MAGIC_LINK_TOKEN_TTL_MS = 15 * 60 * 1000;
+/** Window of the per-email magic-link budget: purges must keep at least this much history. */
+export const LINK_BUDGET_WINDOW_MS = 60 * 60 * 1000;
 
 /**
  * A single-use, time-limited login token sent by email. Only its hash is
