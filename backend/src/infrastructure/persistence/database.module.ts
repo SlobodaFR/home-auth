@@ -1,12 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthorizationCodeOrmEntity } from './entities/authorization-code.orm-entity';
-import { ClientAccessOrmEntity } from './entities/client-access.orm-entity';
-import { ClientOrmEntity } from './entities/client.orm-entity';
-import { MagicLinkTokenOrmEntity } from './entities/magic-link-token.orm-entity';
-import { RefreshTokenOrmEntity } from './entities/refresh-token.orm-entity';
-import { UserOrmEntity } from './entities/user.orm-entity';
+import { ENTITIES } from './entities';
+import { MIGRATIONS } from './migrations';
 import { SLOW_QUERY_THRESHOLD_MS, SlowQueryLogger } from './slow-query.logger';
 
 @Module({
@@ -21,16 +17,12 @@ import { SLOW_QUERY_THRESHOLD_MS, SlowQueryLogger } from './slow-query.logger';
         enableWAL: true,
         maxQueryExecutionTime: SLOW_QUERY_THRESHOLD_MS,
         logger: new SlowQueryLogger(),
-        entities: [
-          UserOrmEntity,
-          ClientOrmEntity,
-          ClientAccessOrmEntity,
-          AuthorizationCodeOrmEntity,
-          RefreshTokenOrmEntity,
-          MagicLinkTokenOrmEntity,
-        ],
-        synchronize: true,
-        autoLoadEntities: true,
+        entities: ENTITIES,
+        // Schema changes only through reviewed migrations: synchronize could rebuild a SQLite
+        // table and drop data, which Litestream would then replicate.
+        synchronize: false,
+        migrations: MIGRATIONS,
+        migrationsRun: true,
       }),
     }),
   ],

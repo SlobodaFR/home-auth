@@ -28,8 +28,8 @@ frontend/src/
   presentation/ # Composants et pages React
 ```
 
-
 **Règles strictes**:
+
 - `domain/` ne dépend de rien d'externe (pas de NestJS, pas de TypeORM). Entités et value objects en
   TypeScript pur, validés par leurs invariants.
 - `application/` orchestre via des ports (interfaces) définis dans `domain/`, jamais d'implémentation
@@ -90,14 +90,22 @@ npm run dev:frontend   # Vite, proxy /api vers le backend
 npm run build          # build:frontend + build:backend
 ```
 
+## Base de données — migrations
+
+- `synchronize` est désactivé : tout changement d'entité s'accompagne d'une migration, générée puis
+  relue à la main (`npm run migration:generate --workspace=backend -- src/infrastructure/persistence/migrations/<Nom>`),
+  et ajoutée à `MIGRATIONS` (`backend/src/infrastructure/persistence/migrations/index.ts`).
+- Éviter toute reconstruction de table SQLite destructrice (renommage de colonne, changement de type) :
+  Litestream répliquerait la perte de données.
+- Le spec `migrations.spec.ts` échoue si le schéma des migrations diffère des entités.
+
 ## Sécurité — points d'attention
 
 - `client_secret` : ne jamais logger, retourné en clair une seule fois à la création.
 - Tokens (`RefreshToken`, `MagicLinkToken`, `AuthorizationCode`) : stockés hashés (jamais en clair) en DB.
 - Cookies de session : `httpOnly`, `secure` en production, `sameSite` adapté au flow cross-domain.
 - Webhooks de logout : timeout court, pas de retry, ne jamais bloquer le flow de logout principal sur leur
-échec.
-
+  échec.
 
 # Ce qu'il ne faut PAS faire
 

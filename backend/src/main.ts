@@ -1,12 +1,12 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { buildCorsOptions } from './interfaces/http/cors';
 import { applySecurityHeaders } from './interfaces/http/security-headers';
+import { setupSwagger } from './interfaces/http/swagger';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -34,17 +34,7 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('Auth Service')
-    .setDescription(
-      "Service centralise d'authentification/autorisation/profil (SSO, OAuth2 Authorization Code + JWT RS256/JWKS)",
-    )
-    .setVersion('1.0')
-    .addCookieAuth('auth_session', { type: 'apiKey', in: 'cookie' })
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+  setupSwagger(app, process.env.NODE_ENV);
 
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   await app.listen(port);
