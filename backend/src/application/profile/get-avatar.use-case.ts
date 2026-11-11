@@ -39,7 +39,7 @@ export class GetAvatarUseCase {
 /** Generated avatars take the first character of each word: punctuation would end up as an initial. */
 function toAvatarName(value: string): string {
   return value
-    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/[^\p{L}\p{M}\p{N}\s]/gu, '')
     .replace(/\s+/g, ' ')
     .trim();
 }

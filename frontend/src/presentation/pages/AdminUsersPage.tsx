@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { AdminUser, apiClient } from '../../infrastructure/api-client';
+import { useAuth } from '../auth/AuthProvider';
 import { Modal } from '../components/Modal';
 
 export function AdminUsersPage() {
@@ -12,6 +13,7 @@ export function AdminUsersPage() {
   const [name, setName] = useState('');
   const [inviting, setInviting] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const { user: currentUser } = useAuth();
 
   // Reloads keep the list (and an open user modal) on screen: only the first load shows the placeholder.
   async function load() {
@@ -189,7 +191,10 @@ export function AdminUsersPage() {
                 <li key={user.id}>
                   <button
                     type="button"
-                    onClick={() => setSelectedUserId(user.id)}
+                    onClick={() => {
+                      setError(null);
+                      setSelectedUserId(user.id);
+                    }}
                     className="w-full flex items-center gap-md px-lg py-md text-left hover:bg-surface-container-low transition-colors"
                   >
                     <Avatar user={user} />
@@ -261,13 +266,15 @@ export function AdminUsersPage() {
                       {formatDate(user.createdAt)}
                     </td>
                     <td className="px-lg py-md text-right">
-                      <button
-                        type="button"
-                        onClick={() => void toggleAdmin(user)}
-                        className="font-label-sm text-label-sm text-mute hover:text-primary transition-colors uppercase"
-                      >
-                        {user.isAdmin ? 'Retirer admin' : 'Rendre admin'}
-                      </button>
+                      {user.id !== currentUser?.id && (
+                        <button
+                          type="button"
+                          onClick={() => void toggleAdmin(user)}
+                          className="font-label-sm text-label-sm text-mute hover:text-primary transition-colors uppercase"
+                        >
+                          {user.isAdmin ? 'Retirer admin' : 'Rendre admin'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -304,13 +311,27 @@ export function AdminUsersPage() {
               </dd>
             </div>
           </dl>
-          <button
-            type="button"
-            onClick={() => void toggleAdmin(selectedUser)}
-            className="w-full px-lg py-sm border border-hairline rounded-lg font-button-md text-button-md text-charcoal hover:bg-soft-cloud transition-all"
-          >
-            {selectedUser.isAdmin ? 'Retirer les droits admin' : 'Rendre admin'}
-          </button>
+          {selectedUser.id === currentUser?.id ? (
+            <p className="font-caption text-caption text-mute">
+              Vous ne pouvez pas modifier vos propres droits admin.
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void toggleAdmin(selectedUser)}
+              className="w-full px-lg py-sm border border-hairline rounded-lg font-button-md text-button-md text-charcoal hover:bg-soft-cloud transition-all"
+            >
+              {selectedUser.isAdmin
+                ? 'Retirer les droits admin'
+                : 'Rendre admin'}
+            </button>
+          )}
+          {/* The page-level error sits behind the modal (inert background): repeat it here. */}
+          {error && (
+            <p role="alert" className="font-caption text-caption text-error">
+              {error}
+            </p>
+          )}
         </Modal>
       )}
 
