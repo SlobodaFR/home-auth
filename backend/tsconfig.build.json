@@ -6,7 +6,5 @@
     "**/*.spec.ts",
     "src/application/test/**"
   ],
-  "compilerOptions": {
-    "types": ["node", "multer"]
-  }
+  "compilerOptions": { "incremental": false, "types": ["node", "multer"] }
 }
