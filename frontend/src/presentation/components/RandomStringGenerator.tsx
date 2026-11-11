@@ -16,15 +16,22 @@ const CHARSET_OPTIONS = [
 
 type CharsetKey = (typeof CHARSET_OPTIONS)[number]['key'];
 
+const DEFAULT_LENGTH = 32;
+const DEFAULT_CHARSETS: Record<CharsetKey, boolean> = {
+  uppercase: true,
+  lowercase: true,
+  digits: true,
+  special: true,
+};
+
 export function RandomStringGenerator() {
-  const [length, setLength] = useState('32');
-  const [charsets, setCharsets] = useState<Record<CharsetKey, boolean>>({
-    uppercase: true,
-    lowercase: true,
-    digits: true,
-    special: true,
-  });
-  const [value, setValue] = useState('');
+  const [length, setLength] = useState(DEFAULT_LENGTH.toString());
+  const [charsets, setCharsets] =
+    useState<Record<CharsetKey, boolean>>(DEFAULT_CHARSETS);
+  // Generated once at first render so the output is never empty.
+  const [value, setValue] = useState(() =>
+    generateRandomString({ length: DEFAULT_LENGTH, ...DEFAULT_CHARSETS }),
+  );
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,12 +61,6 @@ export function RandomStringGenerator() {
     }
   }
 
-  // Never show an empty output at first display.
-  useEffect(() => {
-    handleGenerate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   async function handleCopy() {
     setError(null);
     try {
@@ -80,12 +81,12 @@ export function RandomStringGenerator() {
       aria-labelledby={titleId}
       className="border border-hairline rounded-lg p-md flex flex-col gap-md min-w-0"
     >
-      <h3
+      <span
         id={titleId}
         className="font-label-sm text-label-sm text-charcoal uppercase tracking-wider"
       >
         Generateur de chaine
-      </h3>
+      </span>
       <label className="flex items-center justify-between gap-sm min-w-0">
         <span className="font-label-sm text-label-sm text-charcoal">
           Longueur
@@ -114,7 +115,6 @@ export function RandomStringGenerator() {
               key={key}
               type="button"
               aria-pressed={selected}
-              aria-label={label}
               title={label}
               onClick={() =>
                 setCharsets((current) => ({ ...current, [key]: !current[key] }))
@@ -126,6 +126,7 @@ export function RandomStringGenerator() {
               }`}
             >
               {short}
+              <span className="sr-only"> {label}</span>
             </button>
           );
         })}
@@ -137,7 +138,7 @@ export function RandomStringGenerator() {
           form={DETACHED_FORM}
           value={value}
           aria-label="Chaine generee"
-          className="flex-1 min-w-0 px-md py-sm bg-soft-cloud border border-hairline rounded-lg text-ink font-mono text-caption truncate outline-none"
+          className="flex-1 min-w-0 px-md py-sm bg-soft-cloud border border-hairline rounded-lg text-ink font-mono text-body-md truncate outline-none"
         />
         <button
           type="button"
@@ -154,7 +155,7 @@ export function RandomStringGenerator() {
           onClick={() => void handleCopy()}
           disabled={!value}
           aria-label="Copier"
-          title="Copier"
+          title={copied ? 'Copie !' : 'Copier'}
           className={`${iconButton} text-charcoal hover:bg-soft-cloud`}
         >
           <span className="material-symbols-outlined">
