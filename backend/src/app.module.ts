@@ -35,6 +35,7 @@ const API_ROUTES = [
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    // Must stay after ConfigModule: it loads .env into process.env synchronously.
     LoggerModule.forRoot(loggerParams(process.env.NODE_ENV)),
     ThrottlerModule.forRoot(throttlerOptions),
     DatabaseModule,
