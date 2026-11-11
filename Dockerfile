@@ -30,7 +30,11 @@ FROM node:20-bookworm-slim AS runtime
 ARG TARGETARCH
 ARG LITESTREAM_VERSION=0.3.13
 ENV NODE_ENV=production
-ENV DATABASE_PATH=/app/backend/data/auth.sqlite
+# On the data volume: the runtime user must be able to write the database,
+# its WAL/Litestream files and the generated JWT keys next to it.
+# A file name never used before, so no stale copy on the volume can skip the
+# Litestream restore on the first start.
+ENV DATABASE_PATH=/app/backend/data/sso.sqlite
 WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates \
@@ -45,7 +49,9 @@ COPY --from=backend-build /app/backend/package.json backend/package.json
 COPY backend/litestream.yml backend/litestream.yml
 COPY backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
-    && mkdir -p /app/backend/data
+    && mkdir -p /app/backend/data \
+    && chown node:node /app/backend/data
+USER node
 VOLUME ["/app/backend/data"]
 WORKDIR /app/backend
 EXPOSE 3000
