@@ -32,7 +32,9 @@ ARG LITESTREAM_VERSION=0.3.13
 ENV NODE_ENV=production
 # On the data volume: the runtime user must be able to write the database,
 # its WAL/Litestream files and the generated JWT keys next to it.
-ENV DATABASE_PATH=/app/backend/data/home_auth.sqlite
+# A file name never used before, so no stale copy on the volume can skip the
+# Litestream restore on the first start.
+ENV DATABASE_PATH=/app/backend/data/sso.sqlite
 WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates \
