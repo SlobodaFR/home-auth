@@ -33,6 +33,14 @@ describe('detectImageType', () => {
       ]),
     ],
     ['a truncated PNG signature', Buffer.from([0x89, 0x50, 0x4e])],
+    [
+      'a WebP header shorter than 12 bytes',
+      Buffer.concat([
+        Buffer.from('RIFF'),
+        Buffer.from([0, 0, 0, 0]),
+        Buffer.from('WEB'),
+      ]),
+    ],
   ])('rejects %s', (_label, body) => {
     expect(detectImageType(body)).toBeNull();
   });

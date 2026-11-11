@@ -24,7 +24,8 @@ export class AvatarsController {
       res.setHeader('Content-Type', result.avatar.contentType);
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Content-Disposition', 'inline');
-      res.setHeader('Cache-Control', 'public, max-age=300');
+      // Same URL across uploads: revalidate every time (ETag makes it a 304) so a new avatar shows at once.
+      res.setHeader('Cache-Control', 'public, no-cache');
       res.send(result.avatar.body);
       return;
     }

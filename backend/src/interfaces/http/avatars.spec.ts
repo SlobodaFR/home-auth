@@ -34,7 +34,9 @@ describe('GET /avatars/:userId', () => {
     expect(response.headers['content-type']).toBe('image/png');
     expect(response.headers['x-content-type-options']).toBe('nosniff');
     expect(response.headers['content-disposition']).toBe('inline');
-    expect(response.headers['cache-control']).toBe('public, max-age=300');
+    // The avatar URL never changes: always revalidate (cheap 304 via ETag) so a new upload shows at once.
+    expect(response.headers['cache-control']).toBe('public, no-cache');
+    expect(response.headers.etag).toBeDefined();
     await app.close();
   });
 });
