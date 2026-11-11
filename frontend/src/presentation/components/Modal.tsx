@@ -1,8 +1,10 @@
 import { ReactNode, useEffect, useId, useRef } from 'react';
 
 /**
- * Modal built on the native <dialog>: showModal() gives the focus trap, the inert background
- * and Escape-to-close for free. Mounted = open; the parent unmounts it in onClose.
+ * Modal built on the native <dialog>: showModal() gives the focus trap, the inert background,
+ * Escape-to-close and focus return for free. Mounted = open. Every close path goes through
+ * dialog.close(), so the native `close` event is the single place that calls onClose, where the
+ * parent unmounts it.
  */
 export function Modal({
   title,
@@ -18,12 +20,16 @@ export function Modal({
 
   useEffect(() => {
     const dialog = dialogRef.current;
-    if (!dialog) {
-      return;
+    // Guarded rather than closed in a cleanup: StrictMode re-runs this effect, and close() would
+    // queue a `close` event that unmounts the modal right after it reopens.
+    if (dialog && !dialog.open) {
+      dialog.showModal();
     }
-    dialog.showModal();
-    return () => dialog.close();
   }, []);
+
+  function close() {
+    dialogRef.current?.close();
+  }
 
   return (
     <dialog
@@ -33,7 +39,7 @@ export function Modal({
       onClick={(event) => {
         // The content fills the dialog box, so a click on the dialog itself is a backdrop click.
         if (event.target === event.currentTarget) {
-          onClose();
+          close();
         }
       }}
       className="w-[calc(100%-2rem)] max-w-lg max-h-[85vh] p-0 rounded-xl border border-hairline bg-canvas text-ink shadow-lg backdrop:bg-black/40"
@@ -48,12 +54,14 @@ export function Modal({
           </h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             aria-label="Fermer"
             title="Fermer"
             className="h-10 w-10 shrink-0 flex items-center justify-center rounded-lg text-mute hover:bg-soft-cloud transition-all"
           >
-            <span className="material-symbols-outlined">close</span>
+            <span className="material-symbols-outlined" aria-hidden="true">
+              close
+            </span>
           </button>
         </div>
         {children}

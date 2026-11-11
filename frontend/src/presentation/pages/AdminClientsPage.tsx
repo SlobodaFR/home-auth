@@ -418,7 +418,9 @@ function ClientActions({
           title={label}
           className={`h-10 w-10 flex items-center justify-center rounded-lg text-mute ${hover} hover:bg-soft-cloud transition-colors`}
         >
-          <span className="material-symbols-outlined">{icon}</span>
+          <span className="material-symbols-outlined" aria-hidden="true">
+            {icon}
+          </span>
         </button>
       ))}
     </div>
@@ -526,8 +528,8 @@ function ClientAccessPanel({
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState('');
 
+  // Reloads after grant/revoke keep the list on screen (and the focus in the modal).
   async function load() {
-    setLoading(true);
     try {
       setAllowedUserIds(await apiClient.fetchClientAccess(clientId));
     } catch (err) {

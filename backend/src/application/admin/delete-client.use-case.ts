@@ -13,8 +13,9 @@ export class DeleteClientUseCase {
     if (!(await this.clientRepository.findById(clientId))) {
       throw new NotFoundException(`Client ${clientId} not found`);
     }
-    await this.clientRepository.delete(clientId);
     // Grants are keyed by client id only: a client re-created with this id must start with none.
+    // Revoked first so that a failure leaves the client in place for a retry, never live grants.
     await this.clientAccessRepository.revokeAllByClientId(clientId);
+    await this.clientRepository.delete(clientId);
   }
 }

@@ -44,9 +44,9 @@ export class TypeOrmClientAccessRepository extends ClientAccessRepository {
   async countAllByClientId(): Promise<ReadonlyMap<string, number>> {
     const rows = await this.repository
       .createQueryBuilder('access')
-      .select('access.client_id', 'clientId')
+      .select('access.clientId', 'clientId')
       .addSelect('COUNT(*)', 'count')
-      .groupBy('access.client_id')
+      .groupBy('access.clientId')
       .getRawMany<{ clientId: string; count: number | string }>();
     return new Map(rows.map((row) => [row.clientId, Number(row.count)]));
   }
