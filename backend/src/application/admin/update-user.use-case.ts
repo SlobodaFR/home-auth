@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { User } from '../../domain/user/user';
 import { UserRepository } from '../../domain/user/user.repository';
 
@@ -11,7 +15,19 @@ export interface UpdateUserInput {
 export class UpdateUserUseCase {
   constructor(private readonly userRepository: UserRepository) {}
 
-  async execute(userId: string, input: UpdateUserInput): Promise<User> {
+  /**
+   * @param actorId the admin making the change. An admin cannot remove their own admin role:
+   * since only admins can demote, this also guarantees at least one admin always remains.
+   */
+  async execute(
+    actorId: string,
+    userId: string,
+    input: UpdateUserInput,
+  ): Promise<User> {
+    if (actorId === userId && input.isAdmin === false) {
+      throw new ForbiddenException('You cannot remove your own admin role');
+    }
+
     let user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundException(`User ${userId} not found`);
