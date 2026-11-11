@@ -1,9 +1,4 @@
-import {
-  EventLoopUtilization,
-  IntervalHistogram,
-  monitorEventLoopDelay,
-  performance,
-} from 'perf_hooks';
+import { monitorEventLoopDelay, performance } from 'perf_hooks';
 import {
   Injectable,
   Logger,
@@ -11,6 +6,10 @@ import {
   OnApplicationShutdown,
 } from '@nestjs/common';
 import { Telemetry } from '../../domain/shared/telemetry';
+
+// Derived: @types/node does not export these interfaces from 'perf_hooks' in every version.
+type IntervalHistogram = ReturnType<typeof monitorEventLoopDelay>;
+type EventLoopUtilization = ReturnType<typeof performance.eventLoopUtilization>;
 
 const SAMPLE_INTERVAL_MS = 60_000;
 const HISTOGRAM_RESOLUTION_MS = 20;
