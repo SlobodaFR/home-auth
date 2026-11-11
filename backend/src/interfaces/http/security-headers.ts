@@ -32,21 +32,24 @@ const strict = helmet({
 // Swagger UI needs inline scripts; /docs is disabled in production (#25).
 const withoutCsp = helmet({ ...COMMON, contentSecurityPolicy: false });
 
+// Avatars: no CSP (images), and embeddable by other origins.
+const forAvatars = helmet({
+  ...COMMON,
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+});
+
 /** Security headers for every response: API, SPA static files and /docs. */
 export function applySecurityHeaders(app: NestExpressApplication): void {
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path.startsWith('/avatars/')) {
-      // Client apps embed avatars cross-origin (<img src=".../avatars/:id">).
-      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      helmet({
-        ...COMMON,
-        crossOriginResourcePolicy: false,
-        contentSecurityPolicy: false,
-      })(req, res, next);
-      return;
-    }
-    (req.path === '/docs' || req.path.startsWith('/docs/')
-      ? withoutCsp
-      : strict)(req, res, next);
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    // Express routing is case-insensitive: match the same way.
+    const path = req.path.toLowerCase();
+    // Client apps embed avatars cross-origin (<img src=".../avatars/:id">).
+    const middleware = path.startsWith('/avatars/')
+      ? forAvatars
+      : path === '/docs' || path.startsWith('/docs/')
+        ? withoutCsp
+        : strict;
+    middleware(req, _res, next);
   });
 }

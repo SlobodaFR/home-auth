@@ -91,6 +91,12 @@ describe('security headers', () => {
       'cross-origin',
     );
     expect(response.headers['x-content-type-options']).toBe('nosniff');
+
+    // Express routes case-insensitively: so must the header choice.
+    const upper = await request(app.getHttpServer())
+      .get('/Avatars/u1')
+      .expect(200);
+    expect(upper.headers['cross-origin-resource-policy']).toBe('cross-origin');
   });
 
   // Swagger UI relies on inline scripts.
