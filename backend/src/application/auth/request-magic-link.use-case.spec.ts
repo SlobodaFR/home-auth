@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { MagicLinkToken } from '../../domain/auth/magic-link-token';
+import { EmailMessage, EmailSender } from '../../domain/shared/email-sender';
 import { pseudonymize } from '../../domain/shared/pseudonymize';
 import { User } from '../../domain/user/user';
 import {
@@ -13,11 +14,13 @@ import { RequestMagicLinkUseCase } from './request-magic-link.use-case';
 
 const PSEUDONYM_SECRET = 'p'.repeat(64);
 
-function createUseCase(overrides: Record<string, string> = {}) {
+function createUseCase(
+  overrides: Record<string, string> = {},
+  emailSender: EmailSender = new FakeEmailSender(),
+) {
   const config = { PSEUDONYM_SECRET, ...overrides };
   const userRepository = new InMemoryUserRepository();
   const magicLinkTokenRepository = new InMemoryMagicLinkTokenRepository();
-  const emailSender = new FakeEmailSender();
   const telemetry = new FakeTelemetry();
   const useCase = new RequestMagicLinkUseCase(
     userRepository,
@@ -30,10 +33,108 @@ function createUseCase(overrides: Record<string, string> = {}) {
     useCase,
     userRepository,
     magicLinkTokenRepository,
-    emailSender,
+    emailSender: emailSender as FakeEmailSender,
     telemetry,
   };
 }
+
+/** Sender whose delivery never completes, or fails, like a slow or broken Resend. */
+class StubEmailSender extends EmailSender {
+  readonly attempted: EmailMessage[] = [];
+  constructor(private readonly outcome: 'hang' | 'reject' | 'throw') {
+    super();
+  }
+
+  send(message: EmailMessage): Promise<void> {
+    this.attempted.push(message);
+    if (this.outcome === 'throw') {
+      // A non-async implementation failing before it returns a promise.
+      throw new Error('boom');
+    }
+    return this.outcome === 'hang'
+      ? new Promise(() => undefined)
+      : Promise.reject(
+          new Error('Resend API request failed (403): alice@example.com'),
+        );
+  }
+}
+
+const ALICE = () =>
+  User.create({
+    id: 'user-1',
+    email: 'alice@example.com',
+    name: 'Alice',
+    avatarKey: null,
+    isAdmin: false,
+    createdAt: new Date(),
+  });
+
+describe('RequestMagicLinkUseCase email delivery (#24)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  // A known email must not take longer than an unknown one: delivery runs in the background.
+  it('returns without waiting for the email to be delivered', async () => {
+    const sender = new StubEmailSender('hang');
+    const { useCase, userRepository, magicLinkTokenRepository } = createUseCase(
+      {},
+      sender,
+    );
+    await userRepository.save(ALICE());
+
+    await useCase.execute('alice@example.com');
+
+    expect(sender.attempted).toHaveLength(1);
+    expect(
+      await magicLinkTokenRepository.countIssuedSince(
+        'alice@example.com',
+        new Date(Date.now() - 60_000),
+      ),
+    ).toBe(1);
+  }, 1000);
+
+  it('also contains a sender that throws before returning a promise', async () => {
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const { useCase, userRepository } = createUseCase(
+      {},
+      new StubEmailSender('throw'),
+    );
+    await userRepository.save(ALICE());
+
+    await expect(useCase.execute('alice@example.com')).resolves.toBeUndefined();
+    await new Promise(setImmediate);
+
+    expect(error).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs a failed delivery without the address and without an unhandled rejection', async () => {
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const unhandled = jest.fn();
+    process.on('unhandledRejection', unhandled);
+    const { useCase, userRepository } = createUseCase(
+      {},
+      new StubEmailSender('reject'),
+    );
+    await userRepository.save(ALICE());
+
+    try {
+      await expect(
+        useCase.execute('alice@example.com'),
+      ).resolves.toBeUndefined();
+      await new Promise(setImmediate);
+
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(error.mock.calls)).toContain(
+        'Magic link email delivery failed',
+      );
+      expect(JSON.stringify(error.mock.calls)).not.toContain(
+        'alice@example.com',
+      );
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+  });
+});
 
 describe('RequestMagicLinkUseCase', () => {
   it('sends a magic link to an existing user', async () => {

@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MagicLinkToken } from '../../domain/auth/magic-link-token';
 import { MagicLinkTokenRepository } from '../../domain/auth/magic-link-token.repository';
-import { EmailSender } from '../../domain/shared/email-sender';
+import { EmailMessage, EmailSender } from '../../domain/shared/email-sender';
 import { hashToken } from '../../domain/shared/hash';
 import { pseudonymize } from '../../domain/shared/pseudonymize';
 import { Telemetry } from '../../domain/shared/telemetry';
@@ -96,10 +96,31 @@ export class RequestMagicLinkUseCase {
       link += `&redirect=${encodeURIComponent(redirect)}`;
     }
 
-    await this.emailSender.send({
+    // Fire-and-forget: waiting for delivery would make known emails answer measurably
+    // slower than unknown ones, revealing which accounts exist (#24). A failed delivery is lost;
+    // the user asks for a new link.
+    this.deliverInBackground({
       to: user.email,
       subject: 'Votre lien de connexion',
       html: buildMagicLinkEmailHtml(link),
+    });
+  }
+
+  /** Never throws and never rejects: even a sender failing before it returns a promise is contained. */
+  private deliverInBackground(message: EmailMessage): void {
+    let delivery: Promise<void>;
+    try {
+      delivery = this.emailSender.send(message);
+    } catch (error: unknown) {
+      delivery = Promise.reject(
+        error instanceof Error ? error : new Error('unknown error'),
+      );
+    }
+    delivery.catch((error: unknown) => {
+      // Never the message: Resend errors can echo the address.
+      this.logger.error(
+        `Magic link email delivery failed (${error instanceof Error ? error.name : 'unknown error'})`,
+      );
     });
   }
 
