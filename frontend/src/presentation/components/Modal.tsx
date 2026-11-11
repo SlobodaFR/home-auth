@@ -2,9 +2,9 @@ import { ReactNode, useEffect, useId, useRef } from 'react';
 
 /**
  * Modal built on the native <dialog>: showModal() gives the focus trap, the inert background,
- * Escape-to-close and focus return for free. Mounted = open. Every close path goes through
- * dialog.close(), so the native `close` event is the single place that calls onClose, where the
- * parent unmounts it.
+ * Escape-to-close and focus return for free. Mounted = open. The modal's own close controls
+ * (button, backdrop, Escape) go through dialog.close(), so the native `close` event is the single
+ * place that calls onClose. A parent may also just unmount it, at the cost of focus return.
  */
 export function Modal({
   title,
