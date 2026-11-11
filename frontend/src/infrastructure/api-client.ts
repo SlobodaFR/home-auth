@@ -25,6 +25,10 @@ export interface AdminClient {
   createdAt: string;
 }
 
+export interface AdminClientSummary extends AdminClient {
+  allowedUserCount: number;
+}
+
 export interface CreateClientPayload {
   id: string;
   name: string;
@@ -42,8 +46,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { credentials: 'include', ...init });
   if (!response.ok) {
     const body: unknown = await response.json().catch(() => null);
-    const message = body && typeof body === 'object' && 'message' in body ? body.message : null;
-    throw new Error(typeof message === 'string' ? message : `Request to ${path} failed (${response.status})`);
+    const message =
+      body && typeof body === 'object' && 'message' in body
+        ? body.message
+        : null;
+    throw new Error(
+      typeof message === 'string'
+        ? message
+        : `Request to ${path} failed (${response.status})`,
+    );
   }
   if (response.status === 204) {
     return undefined as T;
@@ -80,7 +91,11 @@ export const apiClient = {
     return response.json() as Promise<CurrentUser>;
   },
 
-  async updateProfile(payload: { name?: string; countryCode?: string | null; locale?: string | null }): Promise<void> {
+  async updateProfile(payload: {
+    name?: string;
+    countryCode?: string | null;
+    locale?: string | null;
+  }): Promise<void> {
     await sendJson('/profile', 'PATCH', payload);
   },
 
@@ -98,15 +113,20 @@ export const apiClient = {
     return sendJson('/admin/users', 'POST', { email, name });
   },
 
-  updateUser(id: string, payload: { name?: string; isAdmin?: boolean }): Promise<AdminUser> {
+  updateUser(
+    id: string,
+    payload: { name?: string; isAdmin?: boolean },
+  ): Promise<AdminUser> {
     return sendJson(`/admin/users/${id}`, 'PATCH', payload);
   },
 
-  fetchClients(): Promise<AdminClient[]> {
-    return request<AdminClient[]>('/admin/clients');
+  fetchClients(): Promise<AdminClientSummary[]> {
+    return request<AdminClientSummary[]>('/admin/clients');
   },
 
-  createClient(payload: CreateClientPayload): Promise<{ client: AdminClient; clientSecret: string }> {
+  createClient(
+    payload: CreateClientPayload,
+  ): Promise<{ client: AdminClient; clientSecret: string }> {
     return sendJson('/admin/clients', 'POST', payload);
   },
 
@@ -127,6 +147,8 @@ export const apiClient = {
   },
 
   async revokeClientAccess(clientId: string, userId: string): Promise<void> {
-    await request(`/admin/clients/${clientId}/access/${userId}`, { method: 'DELETE' });
+    await request(`/admin/clients/${clientId}/access/${userId}`, {
+      method: 'DELETE',
+    });
   },
 };

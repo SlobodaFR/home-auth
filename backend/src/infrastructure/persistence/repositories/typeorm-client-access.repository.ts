@@ -20,7 +20,10 @@ export class TypeOrmClientAccessRepository extends ClientAccessRepository {
   }
 
   async grant(access: ClientAccess): Promise<void> {
-    await this.repository.save({ userId: access.userId, clientId: access.clientId });
+    await this.repository.save({
+      userId: access.userId,
+      clientId: access.clientId,
+    });
   }
 
   async revoke(userId: string, clientId: string): Promise<void> {
@@ -29,6 +32,22 @@ export class TypeOrmClientAccessRepository extends ClientAccessRepository {
 
   async findByClientId(clientId: string): Promise<ClientAccess[]> {
     const rows = await this.repository.find({ where: { clientId } });
-    return rows.map((row) => ClientAccess.create({ userId: row.userId, clientId: row.clientId }));
+    return rows.map((row) =>
+      ClientAccess.create({ userId: row.userId, clientId: row.clientId }),
+    );
+  }
+
+  async revokeAllByClientId(clientId: string): Promise<void> {
+    await this.repository.delete({ clientId });
+  }
+
+  async countAllByClientId(): Promise<ReadonlyMap<string, number>> {
+    const rows = await this.repository
+      .createQueryBuilder('access')
+      .select('access.clientId', 'clientId')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('access.clientId')
+      .getRawMany<{ clientId: string; count: number | string }>();
+    return new Map(rows.map((row) => [row.clientId, Number(row.count)]));
   }
 }

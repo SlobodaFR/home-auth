@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ClientSummary } from '../../../application/admin/list-clients.use-case';
 import { Client } from '../../../domain/client/client';
 
 export class ClientDto {
@@ -18,6 +19,11 @@ export class ClientDto {
   createdAt!: Date;
 }
 
+export class ClientSummaryDto extends ClientDto {
+  @ApiProperty({ description: 'Number of users granted access to this client' })
+  allowedUserCount!: number;
+}
+
 export function toClientDto(client: Client): ClientDto {
   return {
     id: client.id,
@@ -26,4 +32,11 @@ export function toClientDto(client: Client): ClientDto {
     logoutWebhookUrl: client.logoutWebhookUrl,
     createdAt: client.createdAt,
   };
+}
+
+export function toClientSummaryDto({
+  client,
+  allowedUserCount,
+}: ClientSummary): ClientSummaryDto {
+  return Object.assign(toClientDto(client), { allowedUserCount });
 }

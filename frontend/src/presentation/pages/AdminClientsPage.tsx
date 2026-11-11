@@ -1,13 +1,15 @@
-import { Fragment, FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import {
   AdminClient,
+  AdminClientSummary,
   AdminUser,
   apiClient,
 } from '../../infrastructure/api-client';
+import { Modal } from '../components/Modal';
 import { RandomStringGenerator } from '../components/RandomStringGenerator';
 
 export function AdminClientsPage() {
-  const [clients, setClients] = useState<AdminClient[]>([]);
+  const [clients, setClients] = useState<AdminClientSummary[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,8 +17,10 @@ export function AdminClientsPage() {
     clientId: string;
     secret: string;
   } | null>(null);
-  const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
-  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<{
+    kind: DialogKind;
+    clientId: string;
+  } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
   const [id, setId] = useState('');
@@ -25,8 +29,8 @@ export function AdminClientsPage() {
   const [logoutWebhookUrl, setLogoutWebhookUrl] = useState('');
   const [creating, setCreating] = useState(false);
 
+  // Reloads keep the list on screen: only the first load shows the placeholder.
   async function load() {
-    setLoading(true);
     try {
       const [clientList, userList] = await Promise.all([
         apiClient.fetchClients(),
@@ -84,7 +88,7 @@ export function AdminClientsPage() {
         redirectUris,
         logoutWebhookUrl,
       });
-      setEditingClientId(null);
+      setDialog(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -95,11 +99,14 @@ export function AdminClientsPage() {
     setError(null);
     try {
       await apiClient.deleteClient(clientId);
+      setDialog(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
     }
   }
+
+  const dialogClient = clients.find((client) => client.id === dialog?.clientId);
 
   return (
     <main className="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop py-xxl">
@@ -231,8 +238,26 @@ export function AdminClientsPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
+          <>
+            <ul className="md:hidden divide-y divide-hairline">
+              {clients.map((client) => (
+                <li
+                  key={client.id}
+                  className="flex items-center gap-md px-lg py-md"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-body-strong text-body-strong text-ink truncate">
+                      {client.name}
+                    </p>
+                    <p className="font-caption text-caption text-mute truncate">
+                      {formatUserCount(client.allowedUserCount)}
+                    </p>
+                  </div>
+                  <ClientActions client={client} onOpen={setDialog} />
+                </li>
+              ))}
+            </ul>
+            <table className="hidden md:table w-full text-left table-fixed">
               <thead>
                 <tr className="border-b border-hairline">
                   <th className="px-lg py-md font-label-sm text-label-sm text-mute uppercase tracking-wider">
@@ -241,117 +266,164 @@ export function AdminClientsPage() {
                   <th className="px-lg py-md font-label-sm text-label-sm text-mute uppercase tracking-wider">
                     Redirect URIs
                   </th>
-                  <th className="px-lg py-md font-label-sm text-label-sm text-mute uppercase tracking-wider">
-                    Webhook de deconnexion
+                  <th className="w-36 px-lg py-md font-label-sm text-label-sm text-mute uppercase tracking-wider">
+                    Utilisateurs
                   </th>
-                  <th className="px-lg py-md font-label-sm text-label-sm text-mute uppercase tracking-wider text-right">
+                  <th className="w-44 px-lg py-md font-label-sm text-label-sm text-mute uppercase tracking-wider text-right">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {clients.map((client) => (
-                  <Fragment key={client.id}>
-                    <tr className="border-b border-hairline hover:bg-surface-container-low transition-colors group">
-                      <td className="px-lg py-md">
-                        <p className="font-body-strong text-body-strong text-ink">
-                          {client.name}
-                        </p>
+                  <tr
+                    key={client.id}
+                    className="border-b border-hairline last:border-b-0 hover:bg-surface-container-low transition-colors"
+                  >
+                    <td className="px-lg py-md">
+                      <p className="font-body-strong text-body-strong text-ink truncate">
+                        {client.name}
+                      </p>
+                      <p className="font-caption text-caption text-mute truncate">
+                        {client.id}
+                      </p>
+                    </td>
+                    <td className="px-lg py-md font-body-md text-body-md text-mute">
+                      <p className="truncate">{client.redirectUris[0]}</p>
+                      {client.redirectUris.length > 1 && (
                         <p className="font-caption text-caption text-mute">
-                          {client.id}
+                          +{client.redirectUris.length - 1} autre(s)
                         </p>
-                      </td>
-                      <td className="px-lg py-md font-body-md text-body-md text-mute">
-                        {client.redirectUris[0]}
-                        {client.redirectUris.length > 1 && (
-                          <span className="font-caption text-caption text-mute">
-                            {' '}
-                            +{client.redirectUris.length - 1} more
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-lg py-md font-body-md text-body-md text-mute">
-                        {client.logoutWebhookUrl ?? '—'}
-                      </td>
-                      <td className="px-lg py-md text-right">
-                        <div className="flex items-center justify-end gap-sm">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingClientId(
-                                editingClientId === client.id
-                                  ? null
-                                  : client.id,
-                              );
-                              setExpandedClientId(null);
-                            }}
-                            className="p-xs text-mute hover:text-primary transition-colors"
-                            title="Modifier"
-                          >
-                            <span className="material-symbols-outlined">
-                              edit
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setExpandedClientId(
-                                expandedClientId === client.id
-                                  ? null
-                                  : client.id,
-                              );
-                              setEditingClientId(null);
-                            }}
-                            className="p-xs text-mute hover:text-primary transition-colors"
-                            title="Gerer les acces"
-                          >
-                            <span className="material-symbols-outlined">
-                              group
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(client.id)}
-                            className="p-xs text-mute hover:text-error transition-colors"
-                            title="Supprimer"
-                          >
-                            <span className="material-symbols-outlined">
-                              delete
-                            </span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    {editingClientId === client.id && (
-                      <tr className="border-b border-hairline bg-surface-container-low">
-                        <td colSpan={4} className="px-lg py-lg">
-                          <ClientEditForm
-                            client={client}
-                            onSave={handleUpdate}
-                            onCancel={() => setEditingClientId(null)}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                    {expandedClientId === client.id && (
-                      <tr className="border-b border-hairline bg-surface-container-low">
-                        <td colSpan={4} className="px-lg py-lg">
-                          <ClientAccessPanel
-                            clientId={client.id}
-                            users={users}
-                            onError={setError}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
+                      )}
+                    </td>
+                    <td className="px-lg py-md font-body-md text-body-md text-mute">
+                      {client.allowedUserCount}
+                    </td>
+                    <td className="px-lg py-md">
+                      <div className="flex justify-end">
+                        <ClientActions client={client} onOpen={setDialog} />
+                      </div>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </>
         )}
       </div>
+
+      {dialogClient && dialog?.kind === 'edit' && (
+        <Modal
+          title={`Modifier ${dialogClient.name}`}
+          onClose={() => setDialog(null)}
+        >
+          <ClientEditForm
+            client={dialogClient}
+            onSave={handleUpdate}
+            onCancel={() => setDialog(null)}
+          />
+        </Modal>
+      )}
+      {dialogClient && dialog?.kind === 'access' && (
+        <Modal
+          title={`Acces a ${dialogClient.name}`}
+          onClose={() => setDialog(null)}
+        >
+          <ClientAccessPanel
+            clientId={dialogClient.id}
+            users={users}
+            onChange={load}
+            onError={setError}
+          />
+        </Modal>
+      )}
+      {dialogClient && dialog?.kind === 'delete' && (
+        <Modal
+          title={`Supprimer ${dialogClient.name} ?`}
+          onClose={() => setDialog(null)}
+        >
+          <p className="font-body-md text-body-md text-mute">
+            L&apos;application <strong>{dialogClient.id}</strong> et ses acces
+            seront supprimes. Cette action est irreversible.
+          </p>
+          <div className="flex gap-md">
+            <button
+              type="button"
+              onClick={() => void handleDelete(dialogClient.id)}
+              className="flex-1 px-lg py-sm bg-error text-white rounded-lg font-button-md text-button-md hover:opacity-90 transition-all"
+            >
+              Supprimer
+            </button>
+            <button
+              type="button"
+              onClick={() => setDialog(null)}
+              className="flex-1 px-lg py-sm border border-hairline rounded-lg font-button-md text-button-md text-charcoal hover:bg-soft-cloud transition-all"
+            >
+              Annuler
+            </button>
+          </div>
+        </Modal>
+      )}
     </main>
+  );
+}
+
+type DialogKind = 'edit' | 'access' | 'delete';
+
+function formatUserCount(count: number): string {
+  return `${count.toString()} utilisateur${count > 1 ? 's' : ''}`;
+}
+
+const CLIENT_ACTIONS: {
+  kind: DialogKind;
+  icon: string;
+  label: string;
+  hover: string;
+}[] = [
+  {
+    kind: 'edit',
+    icon: 'edit',
+    label: 'Modifier',
+    hover: 'hover:text-primary',
+  },
+  {
+    kind: 'access',
+    icon: 'group',
+    label: 'Gerer les acces',
+    hover: 'hover:text-primary',
+  },
+  {
+    kind: 'delete',
+    icon: 'delete',
+    label: 'Supprimer',
+    hover: 'hover:text-error',
+  },
+];
+
+function ClientActions({
+  client,
+  onOpen,
+}: {
+  client: AdminClient;
+  onOpen: (dialog: { kind: DialogKind; clientId: string }) => void;
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-xs">
+      {CLIENT_ACTIONS.map(({ kind, icon, label, hover }) => (
+        <button
+          key={kind}
+          type="button"
+          onClick={() => onOpen({ kind, clientId: client.id })}
+          aria-label={`${label} ${client.name}`}
+          title={label}
+          className={`h-10 w-10 flex items-center justify-center rounded-lg text-mute ${hover} hover:bg-soft-cloud transition-colors`}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">
+            {icon}
+          </span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -444,18 +516,20 @@ function ClientEditForm({
 function ClientAccessPanel({
   clientId,
   users,
+  onChange,
   onError,
 }: {
   clientId: string;
   users: AdminUser[];
+  onChange: () => Promise<void>;
   onError: (message: string) => void;
 }) {
   const [allowedUserIds, setAllowedUserIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState('');
 
+  // Reloads after grant/revoke keep the list on screen (and the focus in the modal).
   async function load() {
-    setLoading(true);
     try {
       setAllowedUserIds(await apiClient.fetchClientAccess(clientId));
     } catch (err) {
@@ -478,7 +552,7 @@ function ClientAccessPanel({
     try {
       await apiClient.grantClientAccess(clientId, selectedUserId);
       setSelectedUserId('');
-      await load();
+      await Promise.all([load(), onChange()]);
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Erreur inconnue');
     }
@@ -487,7 +561,7 @@ function ClientAccessPanel({
   async function handleRevoke(userId: string) {
     try {
       await apiClient.revokeClientAccess(clientId, userId);
-      await load();
+      await Promise.all([load(), onChange()]);
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Erreur inconnue');
     }
@@ -511,15 +585,15 @@ function ClientAccessPanel({
         {allowedUsers.map((user) => (
           <li
             key={user.id}
-            className="flex justify-between items-center font-body-md text-body-md text-ink"
+            className="flex justify-between items-center gap-sm font-body-md text-body-md text-ink"
           >
-            <span>
+            <span className="min-w-0 truncate">
               {user.name} ({user.email})
             </span>
             <button
               type="button"
               onClick={() => void handleRevoke(user.id)}
-              className="font-label-sm text-label-sm text-error hover:underline uppercase"
+              className="shrink-0 font-label-sm text-label-sm text-error hover:underline uppercase"
             >
               Revoquer
             </button>
@@ -535,12 +609,12 @@ function ClientAccessPanel({
       {availableUsers.length > 0 && (
         <form
           onSubmit={(event) => void handleGrant(event)}
-          className="flex gap-sm"
+          className="flex flex-col sm:flex-row gap-sm"
         >
           <select
             value={selectedUserId}
             onChange={(event) => setSelectedUserId(event.target.value)}
-            className="flex-1 px-md py-sm bg-canvas border border-hairline rounded-lg text-ink font-body-md outline-none"
+            className="flex-1 min-w-0 px-md py-sm bg-canvas border border-hairline rounded-lg text-ink font-body-md text-body-md outline-none"
           >
             <option value="">Selectionner un utilisateur</option>
             {availableUsers.map((user) => (

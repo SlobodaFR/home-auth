@@ -8,4 +8,7 @@ export abstract class ClientAccessRepository {
   abstract grant(access: ClientAccess): Promise<void>;
   abstract revoke(userId: string, clientId: string): Promise<void>;
   abstract findByClientId(clientId: string): Promise<ClientAccess[]>;
+  abstract revokeAllByClientId(clientId: string): Promise<void>;
+  /** Number of users granted access, per client id. Client ids without any grant are absent. */
+  abstract countAllByClientId(): Promise<ReadonlyMap<string, number>>;
 }
