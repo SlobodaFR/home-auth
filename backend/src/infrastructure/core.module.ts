@@ -16,6 +16,7 @@ import { WebhookNotifier } from '../domain/shared/webhook-notifier';
 import { UserRepository } from '../domain/user/user.repository';
 import { AccessTokenGuard } from '../interfaces/http/guards/access-token.guard';
 import { AdminGuard } from '../interfaces/http/guards/admin.guard';
+import { SameOriginGuard } from '../interfaces/http/guards/same-origin.guard';
 import { SessionAuthGuard } from '../interfaces/http/guards/session-auth.guard';
 import { JwksTokenService } from './auth/jwks-token.service';
 import { JwtSessionService } from './auth/jwt-session.service';
@@ -89,6 +90,7 @@ const ENTITIES = [
     PurgeExpiredTokensUseCase,
     TokenPurgeScheduler,
     SessionAuthGuard,
+    SameOriginGuard,
     AdminGuard,
     AccessTokenGuard,
   ],
@@ -107,6 +109,7 @@ const ENTITIES = [
     Telemetry,
     RuntimeHealthMonitor,
     SessionAuthGuard,
+    SameOriginGuard,
     AdminGuard,
     AccessTokenGuard,
   ],
