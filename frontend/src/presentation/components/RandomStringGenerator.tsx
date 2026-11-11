@@ -119,7 +119,7 @@ export function RandomStringGenerator() {
               onClick={() =>
                 setCharsets((current) => ({ ...current, [key]: !current[key] }))
               }
-              className={`min-w-0 py-xs rounded-lg border font-label-sm text-label-sm text-center transition-all ${
+              className={`min-w-0 h-9 flex items-center justify-center rounded-lg border font-label-sm text-label-sm text-center transition-all ${
                 selected
                   ? 'bg-primary/10 border-primary text-primary'
                   : 'border-hairline text-mute'
