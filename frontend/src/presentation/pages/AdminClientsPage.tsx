@@ -1,12 +1,20 @@
 import { Fragment, FormEvent, useEffect, useState } from 'react';
-import { AdminClient, AdminUser, apiClient } from '../../infrastructure/api-client';
+import {
+  AdminClient,
+  AdminUser,
+  apiClient,
+} from '../../infrastructure/api-client';
+import { RandomStringGenerator } from '../components/RandomStringGenerator';
 
 export function AdminClientsPage() {
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [newSecret, setNewSecret] = useState<{ clientId: string; secret: string } | null>(null);
+  const [newSecret, setNewSecret] = useState<{
+    clientId: string;
+    secret: string;
+  } | null>(null);
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -20,7 +28,10 @@ export function AdminClientsPage() {
   async function load() {
     setLoading(true);
     try {
-      const [clientList, userList] = await Promise.all([apiClient.fetchClients(), apiClient.fetchUsers()]);
+      const [clientList, userList] = await Promise.all([
+        apiClient.fetchClients(),
+        apiClient.fetchUsers(),
+      ]);
       setClients(clientList);
       setUsers(userList);
     } catch (err) {
@@ -62,10 +73,17 @@ export function AdminClientsPage() {
     }
   }
 
-  async function handleUpdate(clientId: string, redirectUris: string[], logoutWebhookUrl: string | null) {
+  async function handleUpdate(
+    clientId: string,
+    redirectUris: string[],
+    logoutWebhookUrl: string | null,
+  ) {
     setError(null);
     try {
-      await apiClient.updateClient(clientId, { redirectUris, logoutWebhookUrl });
+      await apiClient.updateClient(clientId, {
+        redirectUris,
+        logoutWebhookUrl,
+      });
       setEditingClientId(null);
       await load();
     } catch (err) {
@@ -87,7 +105,9 @@ export function AdminClientsPage() {
     <main className="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop py-xxl">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-lg mb-xxl">
         <div>
-          <h1 className="font-heading-xl text-heading-xl text-ink tracking-tight">Applications OAuth</h1>
+          <h1 className="font-heading-xl text-heading-xl text-ink tracking-tight">
+            Applications OAuth
+          </h1>
           <p className="font-body-md text-body-md text-mute mt-xs">
             Gerez vos applications et leurs identifiants de securite.
           </p>
@@ -108,7 +128,9 @@ export function AdminClientsPage() {
           className="bg-canvas border border-hairline rounded-xl p-xl mb-xl flex flex-col gap-md"
         >
           <label className="space-y-xs block">
-            <span className="font-label-sm text-label-sm text-charcoal block px-xs">Identifiant (client_id)</span>
+            <span className="font-label-sm text-label-sm text-charcoal block px-xs">
+              Identifiant (client_id)
+            </span>
             <input
               type="text"
               value={id}
@@ -119,7 +141,9 @@ export function AdminClientsPage() {
             />
           </label>
           <label className="space-y-xs block">
-            <span className="font-label-sm text-label-sm text-charcoal block px-xs">Nom</span>
+            <span className="font-label-sm text-label-sm text-charcoal block px-xs">
+              Nom
+            </span>
             <input
               type="text"
               value={name}
@@ -151,6 +175,7 @@ export function AdminClientsPage() {
               className="w-full px-md py-sm bg-canvas border border-hairline rounded-lg text-ink font-body-md focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
             />
           </label>
+          <RandomStringGenerator />
           <div className="flex gap-md">
             <button
               type="submit"
@@ -173,7 +198,8 @@ export function AdminClientsPage() {
       {newSecret && (
         <div className="border border-error rounded-xl p-xl mb-xl bg-canvas">
           <p className="font-body-md text-body-md text-ink mb-sm">
-            Secret pour <strong>{newSecret.clientId}</strong> (affiche une seule fois) :
+            Secret pour <strong>{newSecret.clientId}</strong> (affiche une seule
+            fois) :
           </p>
           <code className="block break-all font-caption text-caption bg-soft-cloud p-md rounded-lg">
             {newSecret.secret}
@@ -181,18 +207,28 @@ export function AdminClientsPage() {
         </div>
       )}
 
-      {error && <p className="font-caption text-caption text-error mb-md">{error}</p>}
+      {error && (
+        <p className="font-caption text-caption text-error mb-md">{error}</p>
+      )}
 
       <div className="bg-canvas border border-hairline rounded-xl overflow-hidden">
         {loading ? (
-          <p className="font-body-md text-body-md text-mute p-xl">Chargement...</p>
+          <p className="font-body-md text-body-md text-mute p-xl">
+            Chargement...
+          </p>
         ) : clients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-xxl px-lg text-center">
             <div className="w-16 h-16 bg-soft-cloud rounded-full flex items-center justify-center text-mute mb-md">
-              <span className="material-symbols-outlined text-[32px]">apps</span>
+              <span className="material-symbols-outlined text-[32px]">
+                apps
+              </span>
             </div>
-            <p className="font-body-strong text-body-strong text-ink">Aucune application</p>
-            <p className="font-caption text-caption text-mute mt-xs">Creez votre premiere application OAuth.</p>
+            <p className="font-body-strong text-body-strong text-ink">
+              Aucune application
+            </p>
+            <p className="font-caption text-caption text-mute mt-xs">
+              Creez votre premiere application OAuth.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -218,8 +254,12 @@ export function AdminClientsPage() {
                   <Fragment key={client.id}>
                     <tr className="border-b border-hairline hover:bg-surface-container-low transition-colors group">
                       <td className="px-lg py-md">
-                        <p className="font-body-strong text-body-strong text-ink">{client.name}</p>
-                        <p className="font-caption text-caption text-mute">{client.id}</p>
+                        <p className="font-body-strong text-body-strong text-ink">
+                          {client.name}
+                        </p>
+                        <p className="font-caption text-caption text-mute">
+                          {client.id}
+                        </p>
                       </td>
                       <td className="px-lg py-md font-body-md text-body-md text-mute">
                         {client.redirectUris[0]}
@@ -238,24 +278,36 @@ export function AdminClientsPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              setEditingClientId(editingClientId === client.id ? null : client.id);
+                              setEditingClientId(
+                                editingClientId === client.id
+                                  ? null
+                                  : client.id,
+                              );
                               setExpandedClientId(null);
                             }}
                             className="p-xs text-mute hover:text-primary transition-colors"
                             title="Modifier"
                           >
-                            <span className="material-symbols-outlined">edit</span>
+                            <span className="material-symbols-outlined">
+                              edit
+                            </span>
                           </button>
                           <button
                             type="button"
                             onClick={() => {
-                              setExpandedClientId(expandedClientId === client.id ? null : client.id);
+                              setExpandedClientId(
+                                expandedClientId === client.id
+                                  ? null
+                                  : client.id,
+                              );
                               setEditingClientId(null);
                             }}
                             className="p-xs text-mute hover:text-primary transition-colors"
                             title="Gerer les acces"
                           >
-                            <span className="material-symbols-outlined">group</span>
+                            <span className="material-symbols-outlined">
+                              group
+                            </span>
                           </button>
                           <button
                             type="button"
@@ -263,7 +315,9 @@ export function AdminClientsPage() {
                             className="p-xs text-mute hover:text-error transition-colors"
                             title="Supprimer"
                           >
-                            <span className="material-symbols-outlined">delete</span>
+                            <span className="material-symbols-outlined">
+                              delete
+                            </span>
                           </button>
                         </div>
                       </td>
@@ -282,7 +336,11 @@ export function AdminClientsPage() {
                     {expandedClientId === client.id && (
                       <tr className="border-b border-hairline bg-surface-container-low">
                         <td colSpan={4} className="px-lg py-lg">
-                          <ClientAccessPanel clientId={client.id} users={users} onError={setError} />
+                          <ClientAccessPanel
+                            clientId={client.id}
+                            users={users}
+                            onError={setError}
+                          />
                         </td>
                       </tr>
                     )}
@@ -303,11 +361,19 @@ function ClientEditForm({
   onCancel,
 }: {
   client: AdminClient;
-  onSave: (clientId: string, redirectUris: string[], logoutWebhookUrl: string | null) => Promise<void>;
+  onSave: (
+    clientId: string,
+    redirectUris: string[],
+    logoutWebhookUrl: string | null,
+  ) => Promise<void>;
   onCancel: () => void;
 }) {
-  const [redirectUris, setRedirectUris] = useState(client.redirectUris.join('\n'));
-  const [logoutWebhookUrl, setLogoutWebhookUrl] = useState(client.logoutWebhookUrl ?? '');
+  const [redirectUris, setRedirectUris] = useState(
+    client.redirectUris.join('\n'),
+  );
+  const [logoutWebhookUrl, setLogoutWebhookUrl] = useState(
+    client.logoutWebhookUrl ?? '',
+  );
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
@@ -328,9 +394,14 @@ function ClientEditForm({
   }
 
   return (
-    <form onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-md">
+    <form
+      onSubmit={(event) => void handleSubmit(event)}
+      className="flex flex-col gap-md"
+    >
       <label className="space-y-xs block">
-        <span className="font-label-sm text-label-sm text-charcoal block px-xs">Redirect URIs (une par ligne)</span>
+        <span className="font-label-sm text-label-sm text-charcoal block px-xs">
+          Redirect URIs (une par ligne)
+        </span>
         <textarea
           value={redirectUris}
           onChange={(event) => setRedirectUris(event.target.value)}
@@ -340,7 +411,9 @@ function ClientEditForm({
         />
       </label>
       <label className="space-y-xs block">
-        <span className="font-label-sm text-label-sm text-charcoal block px-xs">Webhook de deconnexion (optionnel)</span>
+        <span className="font-label-sm text-label-sm text-charcoal block px-xs">
+          Webhook de deconnexion (optionnel)
+        </span>
         <input
           type="text"
           value={logoutWebhookUrl}
@@ -421,7 +494,9 @@ function ClientAccessPanel({
   }
 
   const allowedUsers = users.filter((user) => allowedUserIds.includes(user.id));
-  const availableUsers = users.filter((user) => !allowedUserIds.includes(user.id));
+  const availableUsers = users.filter(
+    (user) => !allowedUserIds.includes(user.id),
+  );
 
   if (loading) {
     return <p className="font-caption text-caption text-mute">Chargement...</p>;
@@ -429,10 +504,15 @@ function ClientAccessPanel({
 
   return (
     <div className="space-y-md">
-      <p className="font-label-sm text-label-sm text-charcoal uppercase tracking-wider">Acces autorises</p>
+      <p className="font-label-sm text-label-sm text-charcoal uppercase tracking-wider">
+        Acces autorises
+      </p>
       <ul className="flex flex-col gap-xs">
         {allowedUsers.map((user) => (
-          <li key={user.id} className="flex justify-between items-center font-body-md text-body-md text-ink">
+          <li
+            key={user.id}
+            className="flex justify-between items-center font-body-md text-body-md text-ink"
+          >
             <span>
               {user.name} ({user.email})
             </span>
@@ -446,12 +526,17 @@ function ClientAccessPanel({
           </li>
         ))}
         {allowedUsers.length === 0 && (
-          <li className="font-caption text-caption text-mute">Aucun utilisateur autorise.</li>
+          <li className="font-caption text-caption text-mute">
+            Aucun utilisateur autorise.
+          </li>
         )}
       </ul>
 
       {availableUsers.length > 0 && (
-        <form onSubmit={(event) => void handleGrant(event)} className="flex gap-sm">
+        <form
+          onSubmit={(event) => void handleGrant(event)}
+          className="flex gap-sm"
+        >
           <select
             value={selectedUserId}
             onChange={(event) => setSelectedUserId(event.target.value)}
