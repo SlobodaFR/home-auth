@@ -18,7 +18,10 @@ describe('sanitizeTelemetryProperties', () => {
     ['an IPv4 address', '203.0.113.7'],
     ['an IPv6 address', '2001:db8::1'],
     ['a long hex string (token, code, hash)', 'a'.repeat(32)],
-    ['a JWT', 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1In0.c2lnbmF0dXJl'],
+    [
+      'a JWT',
+      ['eyJhbGciOiJSUzI1NiJ9', 'eyJzdWIiOiJ1In0', 'c2lnbmF0dXJl'].join('.'),
+    ],
     [
       'a UUID (raw user, token or code id)',
       '8f14e45f-ceea-467a-9575-6b5b4b1f5c11',
