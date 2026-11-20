@@ -152,6 +152,40 @@ describe('JwksTokenService', () => {
     });
   });
 
+  describe('audience (PC4)', () => {
+    async function signFor(keys: RsaKeyProvider, aud: string | string[]) {
+      return new SignJWT({ email: 'a@example.com', name: 'A', isAdmin: false })
+        .setProtectedHeader({ alg: 'RS256', kid: keys.getKeyId() })
+        .setIssuer(ISSUER)
+        .setSubject('user-1')
+        .setAudience(aud)
+        .setIssuedAt()
+        .setExpirationTime('60s')
+        .sign(keys.getPrivateKey());
+    }
+
+    it('rejects an audience listing several clients', async () => {
+      const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
+      const service = new JwksTokenService(keys, CONFIG);
+
+      expect(
+        await service.verifyAccessToken(await signFor(keys, ['budget', 'ai'])),
+      ).toBeNull();
+      expect(
+        await service.verifyAccessToken(await signFor(keys, [])),
+      ).toBeNull();
+    });
+
+    it('reads a single-entry audience list as that client', async () => {
+      const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
+      const service = new JwksTokenService(keys, CONFIG);
+
+      expect(
+        (await service.verifyAccessToken(await signFor(keys, ['budget'])))?.aud,
+      ).toBe('budget');
+    });
+  });
+
   it('rejects a malformed token', async () => {
     const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
     const service = new JwksTokenService(keys, CONFIG);
