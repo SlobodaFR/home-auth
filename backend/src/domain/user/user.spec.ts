@@ -107,4 +107,30 @@ describe('User', () => {
     expect(updated.locale).toBe('en-US');
     expect(user.locale).toBeNull();
   });
+
+  describe('session version', () => {
+    it('defaults to 0 when not provided', () => {
+      expect(User.create(baseProps).sessionVersion).toBe(0);
+    });
+
+    it('keeps the provided value', () => {
+      expect(
+        User.create({ ...baseProps, sessionVersion: 4 }).sessionVersion,
+      ).toBe(4);
+    });
+
+    it('revokeSessions returns a copy with the version incremented, original untouched', () => {
+      const user = User.create({ ...baseProps, sessionVersion: 2 });
+      const revoked = user.revokeSessions();
+      expect(revoked.sessionVersion).toBe(3);
+      expect(user.sessionVersion).toBe(2);
+      expect(revoked.id).toBe(user.id);
+    });
+
+    it.each([-1, 1.5, Number.NaN])('rejects %s', (value) => {
+      expect(() =>
+        User.create({ ...baseProps, sessionVersion: value }),
+      ).toThrow('Invalid session version');
+    });
+  });
 });

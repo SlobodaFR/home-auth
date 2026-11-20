@@ -68,6 +68,36 @@ describe('TypeOrmUserRepository', () => {
 
     await moduleRef.close();
   });
+
+  it('revokeSessions increments atomically; a stale save never undoes it', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmUserRepository);
+
+    const stale = User.create({
+      id: 'user-1',
+      email: 'alice@example.com',
+      name: 'Alice',
+      avatarKey: null,
+      isAdmin: false,
+      createdAt: new Date(),
+    });
+    await repository.save(stale);
+    expect((await repository.findById('user-1'))?.sessionVersion).toBe(0);
+
+    expect(await repository.revokeSessions('user-1')).toBe(true);
+    expect(await repository.revokeSessions('user-1')).toBe(true);
+    expect((await repository.findById('user-1'))?.sessionVersion).toBe(2);
+
+    // A profile update that read the user before the revocation saves it back.
+    await repository.save(stale.rename('Alice B'));
+    const after = await repository.findById('user-1');
+    expect(after?.name).toBe('Alice B');
+    expect(after?.sessionVersion).toBe(2);
+
+    expect(await repository.revokeSessions('unknown')).toBe(false);
+
+    await moduleRef.close();
+  });
 });
 
 describe('TypeOrmClientRepository', () => {
