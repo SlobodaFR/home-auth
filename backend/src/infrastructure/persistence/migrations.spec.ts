@@ -4,6 +4,7 @@ import { join } from 'path';
 import { DataSource } from 'typeorm';
 import { ENTITIES } from './entities';
 import { MIGRATIONS } from './migrations';
+import { InitialSchema1794400000000 } from './migrations/1794400000000-InitialSchema';
 
 function dataSource(database: string, synchronize = false): DataSource {
   return new DataSource({
@@ -51,6 +52,32 @@ describe('database migrations', () => {
     expect(
       (await migrated.driver.createSchemaBuilder().log()).upQueries,
     ).toEqual([]);
+    await migrated.destroy();
+  });
+
+  it('backfill each existing refresh token as its own family, not rotated', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'db-')), 'prod.sqlite');
+    const before = new DataSource({
+      type: 'better-sqlite3',
+      database: file,
+      migrations: [InitialSchema1794400000000],
+    });
+    await before.initialize();
+    await before.runMigrations();
+    await before.query(
+      "INSERT INTO refresh_tokens (id, token_hash, user_id, client_id, expires_at) VALUES ('rt1', 'h1', 'u1', 'budget', datetime('now', '+1 day'))",
+    );
+    await before.destroy();
+
+    const migrated = dataSource(file);
+    await migrated.initialize();
+    await migrated.runMigrations();
+
+    expect(
+      await migrated.query(
+        'SELECT id, family_id, rotated_at FROM refresh_tokens',
+      ),
+    ).toEqual([{ id: 'rt1', family_id: 'rt1', rotated_at: null }]);
     await migrated.destroy();
   });
 });

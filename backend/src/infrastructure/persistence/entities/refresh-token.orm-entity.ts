@@ -26,4 +26,12 @@ export class RefreshTokenOrmEntity {
 
   @CreateDateColumn({ type: 'datetime', name: 'created_at' })
   createdAt!: Date;
+
+  /** Null only for rows written before the column existed (backfilled with id). */
+  @Index('IDX_refresh_tokens_family_id')
+  @Column({ type: 'text', name: 'family_id', nullable: true })
+  familyId!: string | null;
+
+  @Column({ type: 'datetime', name: 'rotated_at', nullable: true })
+  rotatedAt!: Date | null;
 }

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Repository } from 'typeorm';
+import { IsNull, LessThan, Repository } from 'typeorm';
 import { RefreshToken } from '../../../domain/auth/refresh-token';
 import { RefreshTokenRepository } from '../../../domain/auth/refresh-token.repository';
 import { RefreshTokenOrmEntity } from '../entities/refresh-token.orm-entity';
@@ -22,6 +22,8 @@ export class TypeOrmRefreshTokenRepository extends RefreshTokenRepository {
       clientId: token.clientId,
       expiresAt: token.expiresAt,
       createdAt: token.createdAt,
+      familyId: token.familyId,
+      rotatedAt: token.rotatedAt,
     });
   }
 
@@ -37,6 +39,20 @@ export class TypeOrmRefreshTokenRepository extends RefreshTokenRepository {
 
   async deleteById(id: string): Promise<void> {
     await this.repository.delete({ id });
+  }
+
+  async markRotated(id: string, at: Date): Promise<boolean> {
+    // Single conditional UPDATE: SQLite applies it atomically, one caller wins.
+    const result = await this.repository.update(
+      { id, rotatedAt: IsNull() },
+      { rotatedAt: at },
+    );
+    return result.affected === 1;
+  }
+
+  async deleteFamily(familyId: string): Promise<number> {
+    const result = await this.repository.delete({ familyId });
+    return result.affected ?? 0;
   }
 
   async deleteAllForUser(userId: string): Promise<void> {
@@ -56,6 +72,8 @@ export class TypeOrmRefreshTokenRepository extends RefreshTokenRepository {
       clientId: row.clientId,
       expiresAt: row.expiresAt,
       createdAt: row.createdAt,
+      familyId: row.familyId ?? row.id,
+      rotatedAt: row.rotatedAt,
     });
   }
 }

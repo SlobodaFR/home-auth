@@ -70,6 +70,7 @@ export class RefreshTokenUseCase {
         userId: user.id,
         clientId: client.id,
         createdAt: new Date(),
+        familyId: existing.familyId,
       }),
     );
 

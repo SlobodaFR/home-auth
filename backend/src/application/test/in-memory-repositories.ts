@@ -178,6 +178,38 @@ export class InMemoryRefreshTokenRepository extends RefreshTokenRepository {
     this.tokens.delete(id);
   }
 
+  async markRotated(id: string, at: Date): Promise<boolean> {
+    const token = this.tokens.get(id);
+    if (!token || token.rotatedAt) {
+      return false;
+    }
+    this.tokens.set(
+      id,
+      RefreshToken.fromPersistence({
+        id: token.id,
+        tokenHash: token.tokenHash,
+        userId: token.userId,
+        clientId: token.clientId,
+        expiresAt: token.expiresAt,
+        createdAt: token.createdAt,
+        familyId: token.familyId,
+        rotatedAt: at,
+      }),
+    );
+    return true;
+  }
+
+  async deleteFamily(familyId: string): Promise<number> {
+    let deleted = 0;
+    for (const [key, token] of this.tokens) {
+      if (token.familyId === familyId) {
+        this.tokens.delete(key);
+        deleted += 1;
+      }
+    }
+    return deleted;
+  }
+
   async deleteAllForUser(userId: string): Promise<void> {
     for (const token of this.tokens.values()) {
       if (token.userId === userId) {

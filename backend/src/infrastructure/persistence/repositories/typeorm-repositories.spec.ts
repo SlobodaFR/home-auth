@@ -205,6 +205,63 @@ describe('TypeOrmRefreshTokenRepository', () => {
 
     await moduleRef.close();
   });
+
+  function member(id: string, familyId: string) {
+    return RefreshToken.issue({
+      id,
+      tokenHash: `hash-${id}`,
+      userId: 'user-1',
+      clientId: 'budget',
+      createdAt: new Date(),
+      familyId,
+    });
+  }
+
+  it('persists the family and the rotation date', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmRefreshTokenRepository);
+    await repository.save(member('a', 'family-1'));
+
+    const stored = await repository.findByTokenHash('hash-a');
+
+    expect(stored?.familyId).toBe('family-1');
+    expect(stored?.rotatedAt).toBeNull();
+    await moduleRef.close();
+  });
+
+  // better-sqlite3 runs in-process and SQLite has a single writer: this proves one winner per
+  // conditional UPDATE, which is all the atomicity the service relies on.
+  it('marks a token rotated only once (atomic conditional update)', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmRefreshTokenRepository);
+    await repository.save(member('a', 'family-1'));
+    const at = new Date('2026-01-01T00:00:00Z');
+
+    const results = await Promise.all([
+      repository.markRotated('a', at),
+      repository.markRotated('a', new Date()),
+    ]);
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect((await repository.findByTokenHash('hash-a'))?.rotatedAt).toEqual(at);
+    expect(await repository.markRotated('unknown', at)).toBe(false);
+    await moduleRef.close();
+  });
+
+  it('deletes a whole family and only it', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmRefreshTokenRepository);
+    await repository.save(member('a', 'family-1'));
+    await repository.save(member('b', 'family-1'));
+    await repository.save(member('c', 'family-2'));
+
+    expect(await repository.deleteFamily('family-1')).toBe(2);
+
+    expect(await repository.findByTokenHash('hash-a')).toBeNull();
+    expect(await repository.findByTokenHash('hash-b')).toBeNull();
+    expect(await repository.findByTokenHash('hash-c')).not.toBeNull();
+    await moduleRef.close();
+  });
 });
 
 describe('TypeOrmMagicLinkTokenRepository', () => {
