@@ -7,14 +7,13 @@ import request from 'supertest';
 import { AuthorizeUseCase } from '../../application/auth/authorize.use-case';
 import { ExchangeCodeUseCase } from '../../application/auth/exchange-code.use-case';
 import { LookupUserByEmailUseCase } from '../../application/auth/lookup-user-by-email.use-case';
+import { ResolveSessionUseCase } from '../../application/auth/resolve-session.use-case';
 import { RefreshTokenUseCase } from '../../application/auth/refresh-token.use-case';
 import { GetUserInfoUseCase } from '../../application/profile/get-user-info.use-case';
 import { FakeTelemetry } from '../../application/test/in-memory-repositories';
-import { SessionService } from '../../domain/auth/session.service';
 import { TokenService } from '../../domain/auth/token.service';
 import { ClientRepository } from '../../domain/client/client.repository';
 import { Telemetry } from '../../domain/shared/telemetry';
-import { UserRepository } from '../../domain/user/user.repository';
 import { OAuthController } from './controllers/oauth.controller';
 
 const CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
@@ -47,14 +46,10 @@ describe('OAuth state and PKCE (HTTP)', () => {
         { provide: GetUserInfoUseCase, useValue: {} },
         { provide: LookupUserByEmailUseCase, useValue: {} },
         {
-          provide: SessionService,
+          provide: ResolveSessionUseCase,
           useValue: {
-            verify: () => Promise.resolve(signedIn ? 'user-1' : null),
+            execute: () => Promise.resolve(signedIn ? { id: 'user-1' } : null),
           },
-        },
-        {
-          provide: UserRepository,
-          useValue: { findById: () => Promise.resolve({ id: 'user-1' }) },
         },
         {
           provide: ConfigService,

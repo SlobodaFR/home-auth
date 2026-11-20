@@ -2,10 +2,12 @@ import { randomUUID } from 'crypto';
 import { Logger } from '@nestjs/common';
 import { RefreshToken } from '../../domain/auth/refresh-token';
 import { Client } from '../../domain/client/client';
+import { User } from '../../domain/user/user';
 import {
   FakeWebhookNotifier,
   InMemoryClientRepository,
   InMemoryRefreshTokenRepository,
+  InMemoryUserRepository,
 } from '../test/in-memory-repositories';
 import { LogoutUseCase } from './logout.use-case';
 
@@ -14,16 +16,19 @@ describe('LogoutUseCase', () => {
     const refreshTokenRepository = new InMemoryRefreshTokenRepository();
     const clientRepository = new InMemoryClientRepository();
     const webhookNotifier = new FakeWebhookNotifier();
+    const userRepository = new InMemoryUserRepository();
     const useCase = new LogoutUseCase(
       refreshTokenRepository,
       clientRepository,
       webhookNotifier,
+      userRepository,
     );
     return {
       useCase,
       refreshTokenRepository,
       clientRepository,
       webhookNotifier,
+      userRepository,
     };
   }
 
@@ -53,6 +58,30 @@ describe('LogoutUseCase', () => {
     expect(await refreshTokenRepository.findAllForUser('user-1')).toHaveLength(
       0,
     );
+  });
+
+  it('revokes every SSO session of the user (all devices)', async () => {
+    const { useCase, userRepository } = createUseCase();
+    await userRepository.save(
+      User.create({
+        id: 'user-1',
+        email: 'alice@example.com',
+        name: 'Alice',
+        avatarKey: null,
+        isAdmin: false,
+        createdAt: new Date(),
+      }),
+    );
+
+    await useCase.execute('user-1');
+
+    expect((await userRepository.findById('user-1'))?.sessionVersion).toBe(1);
+  });
+
+  it('does not fail for an unknown user', async () => {
+    const { useCase } = createUseCase();
+
+    await expect(useCase.execute('nobody')).resolves.toBeUndefined();
   });
 
   it('notifies logout webhooks for clients with active tokens', async () => {

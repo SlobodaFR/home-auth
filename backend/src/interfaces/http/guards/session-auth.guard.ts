@@ -5,8 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { SessionService } from '../../../domain/auth/session.service';
-import { UserRepository } from '../../../domain/user/user.repository';
+import { ResolveSessionUseCase } from '../../../application/auth/resolve-session.use-case';
 
 export const SESSION_COOKIE_NAME = 'auth_session';
 
@@ -25,26 +24,15 @@ export interface SessionRequest extends Request {
 /** Authenticates the auth-service's own UI via the SSO session cookie. */
 @Injectable()
 export class SessionAuthGuard implements CanActivate {
-  constructor(
-    private readonly sessionService: SessionService,
-    private readonly userRepository: UserRepository,
-  ) {}
+  constructor(private readonly resolveSession: ResolveSessionUseCase) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<SessionRequest>();
-    const token = request.cookies[SESSION_COOKIE_NAME];
-    if (!token) {
-      throw new UnauthorizedException('Authentication required');
-    }
-
-    const userId = await this.sessionService.verify(token);
-    if (!userId) {
-      throw new UnauthorizedException('Invalid or expired session');
-    }
-
-    const user = await this.userRepository.findById(userId);
+    const user = await this.resolveSession.execute(
+      request.cookies[SESSION_COOKIE_NAME],
+    );
     if (!user) {
-      throw new UnauthorizedException('Invalid session');
+      throw new UnauthorizedException('Authentication required');
     }
 
     request.user = {

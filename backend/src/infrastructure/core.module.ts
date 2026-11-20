@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PurgeExpiredTokensUseCase } from '../application/auth/purge-expired-tokens.use-case';
+import { ResolveSessionUseCase } from '../application/auth/resolve-session.use-case';
 import { AuthorizationCodeRepository } from '../domain/auth/authorization-code.repository';
 import { MagicLinkTokenRepository } from '../domain/auth/magic-link-token.repository';
 import { RefreshTokenRepository } from '../domain/auth/refresh-token.repository';
@@ -80,6 +81,7 @@ import { HttpWebhookNotifier } from './webhook/http-webhook-notifier';
     },
     RuntimeHealthMonitor,
     PurgeExpiredTokensUseCase,
+    ResolveSessionUseCase,
     TokenPurgeScheduler,
     SessionAuthGuard,
     SameOriginGuard,
@@ -101,6 +103,7 @@ import { HttpWebhookNotifier } from './webhook/http-webhook-notifier';
     Telemetry,
     FeatureFlags,
     RuntimeHealthMonitor,
+    ResolveSessionUseCase,
     SessionAuthGuard,
     SameOriginGuard,
     AdminGuard,

@@ -50,7 +50,7 @@ describe('VerifyMagicLinkUseCase', () => {
     const result = await useCase.execute(rawToken);
 
     expect(result.userId).toBe('user-1');
-    expect(result.sessionToken).toBe('session:user-1');
+    expect(result.sessionToken).toBe('session:user-1:0');
     expect(telemetry.captured).toEqual([
       {
         event: {
@@ -60,6 +60,34 @@ describe('VerifyMagicLinkUseCase', () => {
         userId: 'user-1',
       },
     ]);
+  });
+
+  it('embeds the current session version and does not change it', async () => {
+    const { useCase, userRepository, magicLinkTokenRepository } =
+      createUseCase();
+    await userRepository.save(
+      User.create({
+        id: 'user-1',
+        email: 'alice@example.com',
+        name: 'Alice',
+        avatarKey: null,
+        isAdmin: false,
+        sessionVersion: 3,
+        createdAt: new Date(),
+      }),
+    );
+    await magicLinkTokenRepository.save(
+      MagicLinkToken.issue({
+        id: randomUUID(),
+        email: 'alice@example.com',
+        tokenHash: hashToken('raw-token'),
+      }),
+    );
+
+    const result = await useCase.execute('raw-token');
+
+    expect(result.sessionToken).toBe('session:user-1:3');
+    expect((await userRepository.findById('user-1'))?.sessionVersion).toBe(3);
   });
 
   it('rejects an unknown token', async () => {
