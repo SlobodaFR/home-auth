@@ -44,7 +44,7 @@ Voir [`backend/.env.example`](backend/.env.example) pour la liste complète. Poi
 | Variable                                 | Rôle                                                                                                                                                                                               |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ADMIN_EMAIL`                            | Email de l'administrateur initial (bootstrap si `users` est vide)                                                                                                                                  |
-| `AUTH_BASE_URL`                          | URL publique du service (liens magiques, audience JWT, JWKS)                                                                                                                                       |
+| `AUTH_BASE_URL`                          | URL publique du service (liens magiques, JWKS). Une origine sans chemin : elle donne le claim `iss` des access tokens                                                                              |
 | `FRONTEND_URL`                           | URL du SPA (redirections `/login`, `/error`). CORS n'est ouvert qu'à cette origine, et seulement si elle diffère de `AUTH_BASE_URL`. Obligatoire en production, en `https`, comme `AUTH_BASE_URL`  |
 | `RESEND_API_KEY`, `EMAIL_FROM`           | Envoi des liens magiques par email                                                                                                                                                                 |
 | `PSEUDONYM_SECRET`                       | Obligatoire en production (≥ 32 octets, `openssl rand -hex 32`) : pseudonymes des emails dans les logs et des utilisateurs dans la télémétrie. Le changer re-clé tous les pseudonymes              |
@@ -140,6 +140,35 @@ const challenge = crypto
 - `GET/POST /admin/users`, `PATCH /admin/users/:id` — gestion des utilisateurs
 - `GET/POST/PATCH/DELETE /admin/clients` — gestion des clients OAuth2 (secret affiché une seule fois à la création)
 - `GET/POST /admin/clients/:id/access`, `DELETE /admin/clients/:id/access/:userId` — liste blanche d'accès par client
+
+## Contrat des access tokens
+
+JWT RS256 signé par la clé publiée sur `/.well-known/jwks.json`, valable 15 min :
+
+| Claim           | Valeur                                                                                        |
+| --------------- | --------------------------------------------------------------------------------------------- |
+| `iss`           | `new URL(AUTH_BASE_URL).origin` (ex. `https://auth.sloboda.fr`) ; `AUTH_BASE_URL` sans chemin |
+| `aud`           | `client_id` du client OAuth2 (une chaîne)                                                     |
+| `sub`           | id de l'utilisateur                                                                           |
+| `email`, `name` | profil au moment de l'émission                                                                |
+| `isAdmin`       | instantané au moment de l'émission                                                            |
+| `iat`, `exp`    | émission, expiration (+ 15 min)                                                               |
+
+Vérification attendue côté application :
+
+```ts
+await jwtVerify(token, jwks, {
+  issuer: new URL(AUTH_SERVICE_URL).origin,
+  audience: AUTH_CLIENT_ID,
+  algorithms: ['RS256'],
+});
+```
+
+- **`iss`** : émis depuis cette version. home-auth (`/userinfo`, `/me`) rejette un `iss` différent ;
+  un jeton sans `iss` (émis avant) reste accepté jusqu'à ce que l'`iss` devienne obligatoire
+  (au moins 15 min après le déploiement de l'émission).
+- **`isAdmin` est un instantané** valable au plus 15 min : un retrait des droits admin n'est vu
+  qu'au renouvellement du jeton. Pour une action sensible, l'application revérifie via `GET /userinfo`.
 
 ## Contrat du webhook de déconnexion
 

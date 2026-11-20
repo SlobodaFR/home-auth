@@ -12,6 +12,7 @@ export function validateEnv(
   env: Record<string, unknown>,
 ): Record<string, unknown> {
   const production = env.NODE_ENV === 'production';
+  assertOrigin(env.AUTH_BASE_URL, 'AUTH_BASE_URL');
   const secret =
     typeof env.PSEUDONYM_SECRET === 'string' ? env.PSEUDONYM_SECRET : '';
 
@@ -31,6 +32,24 @@ export function validateEnv(
     );
   }
   return env;
+}
+
+/** Gives the iss claim of access tokens (PC3): an origin, so `iss` and the URL cannot diverge. */
+function assertOrigin(value: unknown, variable: string): void {
+  if (value === undefined || value === '') {
+    return;
+  }
+  let url: URL;
+  try {
+    url = new URL(typeof value === 'string' ? value : '');
+  } catch {
+    throw new Error(`${variable} must be a URL`);
+  }
+  if (url.pathname !== '/' || url.search || url.hash) {
+    throw new Error(
+      `${variable} must be an origin, without path, query or fragment (${url.origin}): it gives the iss claim of access tokens`,
+    );
+  }
 }
 
 function assertHttpsUrl(value: unknown, variable: string): void {
