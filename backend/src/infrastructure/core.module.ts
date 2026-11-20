@@ -11,6 +11,7 @@ import { ClientRepository } from '../domain/client/client.repository';
 import { ClientAccessRepository } from '../domain/client-access/client-access.repository';
 import { AvatarStorage } from '../domain/shared/avatar-storage';
 import { EmailSender } from '../domain/shared/email-sender';
+import { FeatureFlags } from '../domain/shared/feature-flags';
 import { Telemetry } from '../domain/shared/telemetry';
 import { WebhookNotifier } from '../domain/shared/webhook-notifier';
 import { UserRepository } from '../domain/user/user.repository';
@@ -22,6 +23,7 @@ import { JwksTokenService } from './auth/jwks-token.service';
 import { JwtSessionService } from './auth/jwt-session.service';
 import { RsaKeyProvider } from './auth/rsa-key-provider';
 import { ResendEmailSender } from './email/resend-email-sender';
+import { createFeatureFlags } from './feature-flags/openfeature-feature-flags';
 import { RuntimeHealthMonitor } from './observability/runtime-health.monitor';
 import { ENTITIES } from './persistence/entities';
 import { TypeOrmAuthorizationCodeRepository } from './persistence/repositories/typeorm-authorization-code.repository';
@@ -72,6 +74,10 @@ import { HttpWebhookNotifier } from './webhook/http-webhook-notifier';
       useFactory: createPostHogTelemetry,
       inject: [ConfigService],
     },
+    {
+      provide: FeatureFlags,
+      useFactory: () => createFeatureFlags(process.env),
+    },
     RuntimeHealthMonitor,
     PurgeExpiredTokensUseCase,
     TokenPurgeScheduler,
@@ -93,6 +99,7 @@ import { HttpWebhookNotifier } from './webhook/http-webhook-notifier';
     AvatarStorage,
     WebhookNotifier,
     Telemetry,
+    FeatureFlags,
     RuntimeHealthMonitor,
     SessionAuthGuard,
     SameOriginGuard,
