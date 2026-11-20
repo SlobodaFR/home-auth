@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { Client } from '../../domain/client/client';
 import { ClientRepository } from '../../domain/client/client.repository';
+import { ensureSecureWebhookUrl } from './ensure-secure-webhook-url';
 import { hashSecret } from '../../domain/shared/hash';
 
 export interface CreateClientInput {
@@ -23,6 +24,10 @@ export class CreateClientUseCase {
   async execute(input: CreateClientInput): Promise<CreateClientResult> {
     if (await this.clientRepository.findById(input.id)) {
       throw new ConflictException(`Client ${input.id} already exists`);
+    }
+
+    if (input.logoutWebhookUrl) {
+      ensureSecureWebhookUrl(input.logoutWebhookUrl);
     }
 
     const clientSecret = randomBytes(32).toString('hex');

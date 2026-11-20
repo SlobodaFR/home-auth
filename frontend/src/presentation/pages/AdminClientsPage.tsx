@@ -173,7 +173,7 @@ export function AdminClientsPage() {
           </label>
           <label className="space-y-xs block">
             <span className="font-label-sm text-label-sm text-charcoal block px-xs">
-              Webhook de deconnexion (optionnel)
+              Webhook de deconnexion (https uniquement, optionnel)
             </span>
             <input
               type="text"
@@ -484,7 +484,7 @@ function ClientEditForm({
       </label>
       <label className="space-y-xs block">
         <span className="font-label-sm text-label-sm text-charcoal block px-xs">
-          Webhook de deconnexion (optionnel)
+          Webhook de deconnexion (https uniquement, optionnel)
         </span>
         <input
           type="text"

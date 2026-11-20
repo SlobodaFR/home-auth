@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { verifySecret } from '../../domain/shared/hash';
 import { InMemoryClientRepository } from '../test/in-memory-repositories';
 import { CreateClientUseCase } from './create-client.use-case';
@@ -38,5 +39,38 @@ describe('CreateClientUseCase', () => {
         logoutWebhookUrl: null,
       }),
     ).rejects.toThrow('Client budget already exists');
+  });
+
+  it('accepts an https logout webhook', async () => {
+    const useCase = new CreateClientUseCase(new InMemoryClientRepository());
+
+    const result = await useCase.execute({
+      id: 'budget',
+      name: 'Foyer Budget',
+      redirectUris: ['https://budget.example.com/auth/callback'],
+      logoutWebhookUrl: 'https://budget.example.com/hook?secret=abc',
+    });
+
+    expect(result.client.logoutWebhookUrl).toBe(
+      'https://budget.example.com/hook?secret=abc',
+    );
+  });
+
+  it.each([
+    'http://budget.example.com/hook',
+    'https://user:pass@budget.example.com/hook',
+  ])('rejects the insecure logout webhook %s', async (logoutWebhookUrl) => {
+    const clientRepository = new InMemoryClientRepository();
+    const useCase = new CreateClientUseCase(clientRepository);
+
+    await expect(
+      useCase.execute({
+        id: 'budget',
+        name: 'Foyer Budget',
+        redirectUris: ['https://budget.example.com/auth/callback'],
+        logoutWebhookUrl,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(await clientRepository.findById('budget')).toBeNull();
   });
 });
