@@ -95,6 +95,14 @@ export function AdminClientsPage() {
     }
   }
 
+  async function handleRegenerateWebhookSecret(
+    clientId: string,
+  ): Promise<string> {
+    const { webhookSecret } = await apiClient.regenerateWebhookSecret(clientId);
+    await load();
+    return webhookSecret;
+  }
+
   async function handleDelete(clientId: string) {
     setError(null);
     try {
@@ -320,6 +328,7 @@ export function AdminClientsPage() {
           <ClientEditForm
             client={dialogClient}
             onSave={handleUpdate}
+            onRegenerateWebhookSecret={handleRegenerateWebhookSecret}
             onCancel={() => setDialog(null)}
           />
         </Modal>
@@ -430,6 +439,7 @@ function ClientActions({
 function ClientEditForm({
   client,
   onSave,
+  onRegenerateWebhookSecret,
   onCancel,
 }: {
   client: AdminClient;
@@ -438,6 +448,7 @@ function ClientEditForm({
     redirectUris: string[],
     logoutWebhookUrl: string | null,
   ) => Promise<void>;
+  onRegenerateWebhookSecret: (clientId: string) => Promise<string>;
   onCancel: () => void;
 }) {
   const [redirectUris, setRedirectUris] = useState(
@@ -447,6 +458,30 @@ function ClientEditForm({
     client.logoutWebhookUrl ?? '',
   );
   const [saving, setSaving] = useState(false);
+  // Shown once, kept only in this component: closing the dialog discards it.
+  const [generatedSecret, setGeneratedSecret] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
+  const [secretError, setSecretError] = useState<string | null>(null);
+
+  async function handleRegenerate() {
+    if (
+      client.hasWebhookSecret &&
+      !window.confirm(
+        "Regenerer le secret ? L'ancien reste accepte 24 h, puis les apps doivent utiliser le nouveau.",
+      )
+    ) {
+      return;
+    }
+    setRegenerating(true);
+    setSecretError(null);
+    try {
+      setGeneratedSecret(await onRegenerateWebhookSecret(client.id));
+    } catch (err) {
+      setSecretError(err instanceof Error ? err.message : 'Erreur inconnue');
+    } finally {
+      setRegenerating(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -492,7 +527,40 @@ function ClientEditForm({
           onChange={(event) => setLogoutWebhookUrl(event.target.value)}
           className="w-full px-md py-sm bg-canvas border border-hairline rounded-lg text-ink font-body-md focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
         />
+        {logoutWebhookUrl.includes('?***') && (
+          <span className="font-caption text-caption text-mute block px-xs">
+            La query string est masquee : laissez l&apos;URL telle quelle pour
+            la conserver.
+          </span>
+        )}
       </label>
+      <div className="space-y-xs">
+        <span className="font-label-sm text-label-sm text-charcoal block px-xs">
+          Secret de signature du webhook (
+          {client.hasWebhookSecret ? 'configure' : 'non configure'})
+        </span>
+        <button
+          type="button"
+          onClick={() => void handleRegenerate()}
+          disabled={regenerating}
+          className="px-lg py-sm border border-hairline rounded-lg font-button-md text-button-md text-charcoal hover:bg-soft-cloud transition-all disabled:opacity-50"
+        >
+          {regenerating ? 'Generation...' : 'Régénérer'}
+        </button>
+        {secretError && (
+          <p className="font-caption text-caption text-error">{secretError}</p>
+        )}
+        {generatedSecret && (
+          <div className="border border-error rounded-lg p-md bg-canvas">
+            <p className="font-caption text-caption text-ink mb-xs">
+              Nouveau secret (affiche une seule fois) :
+            </p>
+            <code className="block break-all font-caption text-caption bg-soft-cloud p-sm rounded-lg">
+              {generatedSecret}
+            </code>
+          </div>
+        )}
+      </div>
       <div className="flex gap-md">
         <button
           type="submit"

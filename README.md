@@ -259,6 +259,7 @@ const challenge = crypto
 - `GET/POST /admin/users`, `PATCH /admin/users/:id` — gestion des utilisateurs
 - `POST /admin/users/:id/revoke-sessions` — déconnecte l'utilisateur de tous ses appareils (même effet que son propre logout : sessions SSO invalidées, refresh tokens révoqués, clients notifiés). `204`, ou `404` si l'utilisateur est inconnu. Les access tokens déjà émis restent valables jusqu'à leur expiration (15 min).
 - `GET/POST/PATCH/DELETE /admin/clients` — gestion des clients OAuth2 (secret affiché une seule fois à la création)
+- `POST /admin/clients/:id/webhook-secret` — génère ou régénère le secret de signature du webhook (`{ "webhookSecret": "<64 hex>" }`, affiché une seule fois, jamais relu : `GET /admin/clients` ne renvoie que `hasWebhookSecret`). L'ancien secret reste valide 24 h
 - `GET/POST /admin/clients/:id/access`, `DELETE /admin/clients/:id/access/:userId` — liste blanche d'accès par client
 
 ## Contrat des access tokens
@@ -292,20 +293,68 @@ await jwtVerify(token, jwks, {
 ## Contrat du webhook de déconnexion
 
 À la déconnexion (`POST /auth/logout`), tous les refresh tokens de l'utilisateur sont révoqués. Pour
-chaque client OAuth2 ayant un `logoutWebhookUrl` configuré, le service appelle en best-effort (timeout
-2s, sans retry) :
+chaque client OAuth2 ayant un `logoutWebhookUrl` configuré, le service appelle en best-effort :
 
 ```http
 POST {logoutWebhookUrl}
 Content-Type: application/json
+X-Auth-Webhook-Id: <uuid v4>
+X-Auth-Webhook-Timestamp: <secondes unix>
+X-Auth-Webhook-Signature: v1=<hex>[,v1=<hex>]
 
-{ "userId": "<id utilisateur>" }
+{"userId":"<id utilisateur>"}
 ```
 
-Les applications clientes doivent exposer ce endpoint et invalider leurs propres sessions/cookies pour
-cet utilisateur. Un échec ou un timeout du webhook n'empêche pas la déconnexion côté auth-service.
+Le corps est exactement `JSON.stringify({ userId })`. Les applications clientes doivent exposer ce
+endpoint et invalider leurs propres sessions/cookies pour cet utilisateur. Un échec ou un timeout du
+webhook n'empêche pas la déconnexion côté auth-service.
 
-Livraison : l'appel part de façon asynchrone (jamais dans le chemin de la déconnexion), avec un délai
+### Signature (contrat PC7)
+
+`hex = HMAC-SHA256(secret, id + "." + timestamp + "." + rawBody)` : la clé est la chaîne du secret
+telle que affichée (64 caractères hexadécimaux, en UTF-8, **pas** ses octets décodés) et `rawBody` les
+octets reçus, non re-sérialisés. Tant qu'un client n'a pas de secret, `X-Auth-Webhook-Signature` est
+absent ; après une régénération, pendant 24 h, l'en-tête porte deux entrées `v1=` (nouveau secret
+d'abord, ancien ensuite).
+
+Vérification côté application :
+
+1. `|now - timestamp| ≤ 120 s` ;
+2. `id` non vu dans les 10 dernières minutes (Set en mémoire avec TTL) ;
+3. pour chaque entrée `v1=` : décoder le hex en 32 octets (format invalide : 401), `timingSafeEqual`
+   avec le HMAC recalculé ; accepté si UNE entrée correspond ;
+4. `rawBody` : `rawBody: true` à la création Nest, ou `verify` du parser JSON quand `bodyParser: false` ;
+   repli documenté : `JSON.stringify({ userId: body.userId })`.
+
+**Vecteurs de test fixes** (copiés dans `backend/src/domain/shared/webhook-signer.spec.ts` ; à recopier
+tels quels dans les tests des apps) :
+
+|     | secret | id                                     | timestamp    | corps                 | HMAC (hex)                                                         |
+| --- | ------ | -------------------------------------- | ------------ | --------------------- | ------------------------------------------------------------------ |
+| 1   | `S1`   | `3b241101-e2bb-4255-8caf-4136c566a962` | `1700000000` | `{"userId":"u1"}`     | `41294c53497c1d18871786b2d5c3ec091e6b357638e7104d826de50af8813242` |
+| 2   | `S2`   | `3b241101-e2bb-4255-8caf-4136c566a962` | `1700000000` | `{"userId":"u1"}`     | `89de6c4652b33d864427b3091771ed8b9266a99b3bf915b126eb4655a2dce09f` |
+| 3   | `S1`   | `9b2f0f6e-8d3a-4f6b-9c1e-2a7d5e4c1b30` | `1700000123` | `{"userId":"4b8f-é"}` | `d9a2c8cec34058ebb100f8b454ba46b1214cf777000d9aab00dda91205d5a3ac` |
+
+- `S1` = `000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f`
+- `S2` = `ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100`
+- Vecteur 4 (recouvrement) : secrets `[S1, S2]`, id/timestamp/corps du vecteur 1 →
+  `X-Auth-Webhook-Signature: v1=41294c53497c1d18871786b2d5c3ec091e6b357638e7104d826de50af8813242,v1=89de6c4652b33d864427b3091771ed8b9266a99b3bf915b126eb4655a2dce09f`
+- Recoupement : `printf '%s' '3b241101-e2bb-4255-8caf-4136c566a962.1700000000.{"userId":"u1"}' | openssl dgst -sha256 -hmac <S1>`
+
+### Secret (contrat PC8)
+
+Le secret de chaque client (32 octets aléatoires en hexadécimal) est stocké **en clair** dans
+`clients.webhook_secret` (exception documentée : il sert de clé HMAC, un hachage ne suffirait pas),
+avec `webhook_secret_previous` et `webhook_secret_previous_expires_at` pour le recouvrement de 24 h.
+Il n'est créé que par l'action explicite « Régénérer » de la page admin des clients
+(`POST /admin/clients/:id/webhook-secret`), affiché une seule fois, puis à reporter dans le
+gestionnaire de secrets de l'application. `GET /admin/clients` n'expose que `hasWebhookSecret` et
+masque la query string de `logoutWebhookUrl` (`?***`) ; renvoyer cette valeur masquée à
+`PATCH /admin/clients/:id` conserve l'URL enregistrée.
+
+### Livraison
+
+L'appel part de façon asynchrone (jamais dans le chemin de la déconnexion), avec un délai
 TOTAL de 2 s, sans retry ni redirection suivie (seul un 2xx est un succès). Les cibles non publiques
 sont refusées à la connexion : IP littérale ou adresses résolues (toutes contrôlées, puis connexion aux
 adresses validées) dans `0.0.0.0/8`, `10/8`, `100.64/10`, `127/8`, `169.254/16`, `172.16/12`,

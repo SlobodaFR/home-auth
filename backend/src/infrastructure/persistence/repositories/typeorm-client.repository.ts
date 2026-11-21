@@ -32,6 +32,9 @@ export class TypeOrmClientRepository extends ClientRepository {
       redirectUris: [...client.redirectUris],
       logoutWebhookUrl: client.logoutWebhookUrl,
       createdAt: client.createdAt,
+      webhookSecret: client.webhookSecret,
+      webhookSecretPrevious: client.webhookSecretPrevious,
+      webhookSecretPreviousExpiresAt: client.webhookSecretPreviousExpiresAt,
     });
   }
 
@@ -48,5 +51,8 @@ function toDomain(row: ClientOrmEntity): Client {
     redirectUris: row.redirectUris,
     logoutWebhookUrl: row.logoutWebhookUrl,
     createdAt: row.createdAt,
+    webhookSecret: row.webhookSecret,
+    webhookSecretPrevious: row.webhookSecretPrevious,
+    webhookSecretPreviousExpiresAt: row.webhookSecretPreviousExpiresAt,
   });
 }

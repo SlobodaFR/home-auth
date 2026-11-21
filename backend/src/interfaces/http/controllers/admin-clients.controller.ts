@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   Param,
   Patch,
@@ -23,6 +24,7 @@ import {
   ListClientAccessUseCase,
   RevokeClientAccessUseCase,
 } from '../../../application/admin/manage-client-access.use-case';
+import { RegenerateWebhookSecretUseCase } from '../../../application/admin/regenerate-webhook-secret.use-case';
 import { UpdateClientUseCase } from '../../../application/admin/update-client.use-case';
 import { CreateClientDto } from '../dto/create-client.dto';
 import { GrantClientAccessDto } from '../dto/grant-client-access.dto';
@@ -38,6 +40,7 @@ import {
 } from '../presenters/client.presenter';
 import { CreateClientResponseDto } from '../presenters/create-client-response.dto';
 import { SESSION_SECURITY_SCHEME } from '../session-cookie';
+import { WebhookSecretResponseDto } from '../presenters/webhook-secret-response.dto';
 
 @ApiTags('Admin - Clients')
 @ApiCookieAuth(SESSION_SECURITY_SCHEME)
@@ -53,6 +56,7 @@ export class AdminClientsController {
     private readonly grantClientAccessUseCase: GrantClientAccessUseCase,
     private readonly revokeClientAccessUseCase: RevokeClientAccessUseCase,
     private readonly listClientAccessUseCase: ListClientAccessUseCase,
+    private readonly regenerateWebhookSecretUseCase: RegenerateWebhookSecretUseCase,
   ) {}
 
   @Get()
@@ -85,6 +89,20 @@ export class AdminClientsController {
     @Body() dto: UpdateClientDto,
   ): Promise<ClientDto> {
     return toClientDto(await this.updateClientUseCase.execute(id, dto));
+  }
+
+  @Post(':id/webhook-secret')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary: 'Generate or regenerate the logout webhook signing secret',
+    description:
+      'The secret is returned in this response only. A regeneration keeps the previous secret signing for 24 h (two v1= entries).',
+  })
+  @ApiResponse({ status: 201, type: WebhookSecretResponseDto })
+  async regenerateWebhookSecret(
+    @Param('id') id: string,
+  ): Promise<WebhookSecretResponseDto> {
+    return this.regenerateWebhookSecretUseCase.execute(id);
   }
 
   @Delete(':id')

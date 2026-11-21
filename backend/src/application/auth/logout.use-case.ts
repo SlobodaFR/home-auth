@@ -36,9 +36,11 @@ export class LogoutUseCase {
       }
       let delivery: Promise<void>;
       try {
-        delivery = this.webhookNotifier.notify(client.logoutWebhookUrl, {
-          userId,
-        });
+        delivery = this.webhookNotifier.notify(
+          client.logoutWebhookUrl,
+          { userId },
+          client.activeWebhookSecrets(new Date()),
+        );
       } catch (error: unknown) {
         delivery = Promise.reject(
           error instanceof Error ? error : new Error('unknown error'),

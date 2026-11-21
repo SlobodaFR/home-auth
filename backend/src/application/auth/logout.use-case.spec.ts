@@ -136,7 +136,43 @@ describe('LogoutUseCase', () => {
       {
         url: 'https://budget.example.com/internal/session-revoked',
         payload: { userId: 'user-1' },
+        secrets: [],
       },
+    ]);
+  });
+
+  it('signs with the active secrets: current, then the previous one while it overlaps', async () => {
+    const {
+      useCase,
+      refreshTokenRepository,
+      clientRepository,
+      webhookNotifier,
+    } = createUseCase();
+    const regenerated = Client.create({
+      id: 'budget',
+      name: 'Foyer Budget',
+      clientSecretHash: 'hash',
+      redirectUris: ['https://budget.example.com/auth/callback'],
+      logoutWebhookUrl: 'https://budget.example.com/internal/session-revoked',
+      createdAt: new Date(),
+    })
+      .regenerateWebhookSecret('old', new Date())
+      .regenerateWebhookSecret('new', new Date());
+    await clientRepository.save(regenerated);
+    await refreshTokenRepository.save(
+      RefreshToken.issue({
+        id: randomUUID(),
+        tokenHash: 'hash-1',
+        userId: 'user-1',
+        clientId: 'budget',
+        createdAt: new Date(),
+      }),
+    );
+
+    await useCase.execute('user-1');
+
+    expect(webhookNotifier.calls.map((call) => call.secrets)).toEqual([
+      ['new', 'old'],
     ]);
   });
 
