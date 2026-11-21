@@ -4,6 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { AuthorizationCode } from '../../domain/auth/authorization-code';
 import { AuthorizationCodeRepository } from '../../domain/auth/authorization-code.repository';
 import { RefreshToken } from '../../domain/auth/refresh-token';
 import { RefreshTokenRepository } from '../../domain/auth/refresh-token.repository';
@@ -13,8 +14,10 @@ import {
 } from '../../domain/auth/token.service';
 import { ClientRepository } from '../../domain/client/client.repository';
 import { hashToken, verifySecret } from '../../domain/shared/hash';
+import { FeatureFlags } from '../../domain/shared/feature-flags';
 import { Telemetry } from '../../domain/shared/telemetry';
 import { UserRepository } from '../../domain/user/user.repository';
+import { REUSE_REVOCATION_FLAG } from './token-reuse';
 
 export interface ExchangeCodeInput {
   code: string;
@@ -41,7 +44,26 @@ export class ExchangeCodeUseCase {
     private readonly userRepository: UserRepository,
     private readonly tokenService: TokenService,
     private readonly telemetry: Telemetry,
+    private readonly featureFlags: FeatureFlags,
   ) {}
+
+  /**
+   * A code presented twice (PC2): its refresh token family (named after the code hash) is deleted
+   * when the flag is on, since the first redemption may have been an attacker's.
+   */
+  private async rejectReuse(
+    clientId: string,
+    code: AuthorizationCode,
+  ): Promise<never> {
+    if (await this.featureFlags.isEnabled(REUSE_REVOCATION_FLAG, false)) {
+      await this.refreshTokenRepository.deleteFamily(code.codeHash);
+    }
+    this.telemetry.capture(
+      { name: 'code_reused', properties: { client_id: clientId } },
+      code.userId,
+    );
+    throw new UnauthorizedException('Authorization code already used');
+  }
 
   async execute(input: ExchangeCodeInput): Promise<TokenPair> {
     const client = await this.clientRepository.findById(input.clientId);
@@ -71,9 +93,12 @@ export class ExchangeCodeUseCase {
     }
 
     const now = new Date();
+    if (authorizationCode.used) {
+      return this.rejectReuse(client.id, authorizationCode);
+    }
     let redeemed;
     try {
-      // Domain rules give the error message (used, expired)...
+      // Domain rules give the error message (expired)...
       redeemed = authorizationCode.redeem(now);
     } catch (error) {
       throw new UnauthorizedException(
@@ -87,7 +112,7 @@ export class ExchangeCodeUseCase {
         now,
       ))
     ) {
-      throw new UnauthorizedException('Authorization code already used');
+      return this.rejectReuse(client.id, authorizationCode);
     }
 
     const user = await this.userRepository.findById(redeemed.userId);

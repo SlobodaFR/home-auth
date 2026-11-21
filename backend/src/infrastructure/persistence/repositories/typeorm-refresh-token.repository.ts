@@ -50,6 +50,11 @@ export class TypeOrmRefreshTokenRepository extends RefreshTokenRepository {
     return result.affected === 1;
   }
 
+  async deleteRotatedBefore(date: Date): Promise<number> {
+    const result = await this.repository.delete({ rotatedAt: LessThan(date) });
+    return result.affected ?? 0;
+  }
+
   async deleteFamily(familyId: string): Promise<number> {
     const result = await this.repository.delete({ familyId });
     return result.affected ?? 0;

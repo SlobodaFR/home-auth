@@ -30,6 +30,19 @@ export type TelemetryEvent =
       };
     }
   | {
+      // A refresh token presented again after its rotation (PC1). `revoked`: its family was deleted.
+      name: 'refresh_reused';
+      properties: {
+        client_id: string;
+        kind:
+          | 'rotated_in_grace'
+          | 'concurrent_lost_race'
+          | 'rotated_after_grace';
+        revoked: boolean;
+      };
+    }
+  | { name: 'code_reused'; properties: { client_id: string } }
+  | {
       name: 'runtime_health';
       properties: {
         lag_p50_ms: number;
