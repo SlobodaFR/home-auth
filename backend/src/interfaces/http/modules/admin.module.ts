@@ -9,8 +9,10 @@ import {
   ListClientAccessUseCase,
   RevokeClientAccessUseCase,
 } from '../../../application/admin/manage-client-access.use-case';
+import { RevokeUserSessionsUseCase } from '../../../application/admin/revoke-user-sessions.use-case';
 import { UpdateClientUseCase } from '../../../application/admin/update-client.use-case';
 import { UpdateUserUseCase } from '../../../application/admin/update-user.use-case';
+import { LogoutUseCase } from '../../../application/auth/logout.use-case';
 import { AdminClientsController } from '../controllers/admin-clients.controller';
 import { AdminUsersController } from '../controllers/admin-users.controller';
 
@@ -20,6 +22,9 @@ import { AdminUsersController } from '../controllers/admin-users.controller';
     ListUsersUseCase,
     InviteUserUseCase,
     UpdateUserUseCase,
+    RevokeUserSessionsUseCase,
+    // Same use case as POST /auth/logout, provided here too (stateless, ports are global).
+    LogoutUseCase,
     ListClientsUseCase,
     CreateClientUseCase,
     UpdateClientUseCase,

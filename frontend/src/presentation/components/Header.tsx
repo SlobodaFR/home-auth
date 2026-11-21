@@ -65,7 +65,8 @@ export function Header() {
               type="button"
               onClick={() => void handleLogout()}
               className="p-sm text-mute hover:text-ink transition-colors"
-              title="Deconnexion"
+              title="Se déconnecter de tous les appareils"
+              aria-label="Se déconnecter de tous les appareils"
             >
               <span className="material-symbols-outlined">logout</span>
             </button>

@@ -257,6 +257,7 @@ const challenge = crypto
 ### Administration (réservé aux admins)
 
 - `GET/POST /admin/users`, `PATCH /admin/users/:id` — gestion des utilisateurs
+- `POST /admin/users/:id/revoke-sessions` — déconnecte l'utilisateur de tous ses appareils (même effet que son propre logout : sessions SSO invalidées, refresh tokens révoqués, clients notifiés). `204`, ou `404` si l'utilisateur est inconnu. Les access tokens déjà émis restent valables jusqu'à leur expiration (15 min).
 - `GET/POST/PATCH/DELETE /admin/clients` — gestion des clients OAuth2 (secret affiché une seule fois à la création)
 - `GET/POST /admin/clients/:id/access`, `DELETE /admin/clients/:id/access/:userId` — liste blanche d'accès par client
 

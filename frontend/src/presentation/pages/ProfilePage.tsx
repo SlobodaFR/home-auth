@@ -231,7 +231,7 @@ export function ProfilePage() {
               onClick={() => void logout()}
               className="font-button-md text-button-md text-charcoal border border-hairline rounded-lg px-lg py-sm hover:bg-canvas transition-all"
             >
-              Deconnexion
+              Se déconnecter de tous les appareils
             </button>
             <div className="flex items-center gap-md">
               {error && (
