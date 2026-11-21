@@ -142,13 +142,20 @@ describe('JwksTokenService', () => {
       }
     });
 
-    it('still accepts a token without iss (issued before B1, until B3)', async () => {
+    it('rejects an SSO session token signed by the same key', async () => {
       const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
       const service = new JwksTokenService(keys, CONFIG);
 
-      expect((await service.verifyAccessToken(await signWith(keys)))?.sub).toBe(
-        'user-1',
-      );
+      const session = await new JwtSessionService(keys).sign('user-1');
+
+      expect(await service.verifyAccessToken(session)).toBeNull();
+    });
+
+    it('rejects a token without iss (B3: required)', async () => {
+      const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
+      const service = new JwksTokenService(keys, CONFIG);
+
+      expect(await service.verifyAccessToken(await signWith(keys))).toBeNull();
     });
   });
 
