@@ -234,21 +234,19 @@ describe('JwtSessionService', () => {
     });
   });
 
-  // Cookies issued before the sv claim existed stay readable until the strict rollout (PC9 D3).
-  it('reads a session token without sv as a legacy token (version null)', async () => {
+  // Cookies issued before the sv claim existed must not survive: one forced re-login (PC9 D3).
+  it('rejects a session token without sv', async () => {
     const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
     const service = new JwtSessionService(keys);
 
-    expect(await service.verify(await signRaw(keys, {}))).toEqual({
-      userId: 'u1',
-      sessionVersion: null,
-    });
+    expect(await service.verify(await signRaw(keys, {}))).toBeNull();
   });
 
   it.each([
     ['a string', 'x'],
     ['a non-integer', 1.5],
     ['a negative number', -1],
+    ['null', null],
   ])('rejects a session token whose sv is %s', async (_label, sv) => {
     const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
     const service = new JwtSessionService(keys);

@@ -27,11 +27,7 @@ export class ResolveSessionUseCase {
     if (!user) {
       return null;
     }
-    // Transitional (PC9 D2): a legacy token without sv is accepted as the current version.
-    if (
-      session.sessionVersion !== null &&
-      session.sessionVersion !== user.sessionVersion
-    ) {
+    if (session.sessionVersion !== user.sessionVersion) {
       return null;
     }
     return user;

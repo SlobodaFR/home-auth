@@ -41,7 +41,7 @@ import {
   AccessTokenGuard,
   AccessTokenRequest,
 } from '../guards/access-token.guard';
-import { SESSION_COOKIE_NAME } from '../guards/session-auth.guard';
+import { SESSION_SECURITY_SCHEME, sessionCookieName } from '../session-cookie';
 import { TokenPairDto } from '../presenters/token-pair.dto';
 import { UserInfoDto } from '../presenters/user-info.dto';
 import { UserLookupDto } from '../presenters/user-lookup.dto';
@@ -61,7 +61,7 @@ export class OAuthController {
   ) {}
 
   @Get('authorize')
-  @ApiCookieAuth('auth_session')
+  @ApiCookieAuth(SESSION_SECURITY_SCHEME)
   @ApiOperation({
     summary: 'Start the OAuth2 Authorization Code flow',
     description:
@@ -78,7 +78,7 @@ export class OAuthController {
   ): Promise<void> {
     const cookies = req.cookies as Record<string, string | undefined>;
     const userId =
-      (await this.resolveSession.execute(cookies[SESSION_COOKIE_NAME]))?.id ??
+      (await this.resolveSession.execute(cookies[sessionCookieName()]))?.id ??
       null;
     if (!userId) {
       this.telemetry.capture({

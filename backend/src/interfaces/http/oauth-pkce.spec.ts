@@ -15,6 +15,7 @@ import { TokenService } from '../../domain/auth/token.service';
 import { ClientRepository } from '../../domain/client/client.repository';
 import { Telemetry } from '../../domain/shared/telemetry';
 import { OAuthController } from './controllers/oauth.controller';
+import { sessionCookieName } from './session-cookie';
 
 const CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
 const VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
@@ -48,7 +49,10 @@ describe('OAuth state and PKCE (HTTP)', () => {
         {
           provide: ResolveSessionUseCase,
           useValue: {
-            execute: () => Promise.resolve(signedIn ? { id: 'user-1' } : null),
+            execute: (token: string | undefined) =>
+              Promise.resolve(
+                signedIn && token === 'jwt' ? { id: 'user-1' } : null,
+              ),
           },
         },
         {
@@ -74,11 +78,36 @@ describe('OAuth state and PKCE (HTTP)', () => {
     await app.close();
   });
 
-  const authorizeRequest = (query: Record<string, string>) =>
+  const authorizeRequest = (
+    query: Record<string, string>,
+    cookieName = sessionCookieName(),
+  ) =>
     request(app.getHttpServer())
       .get('/authorize')
       .query({ client_id: 'budget', redirect_uri: REDIRECT, ...query })
-      .set('Cookie', 'auth_session=jwt');
+      .set('Cookie', `${cookieName}=jwt`);
+
+  it('reads the session from __Host-auth_session in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const response = await authorizeRequest({}, '__Host-auth_session').expect(
+      302,
+    );
+
+    expect(new URL(response.headers.location).searchParams.get('code')).toBe(
+      'the-code',
+    );
+    vi.unstubAllEnvs();
+  });
+
+  it('ignores the plain auth_session cookie in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const response = await authorizeRequest({}, 'auth_session').expect(302);
+
+    expect(new URL(response.headers.location).pathname).toBe('/login');
+    vi.unstubAllEnvs();
+  });
 
   it('echoes state in the success redirect', async () => {
     const response = await authorizeRequest({ state: 'a b&c' }).expect(302);

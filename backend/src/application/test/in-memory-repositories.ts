@@ -406,10 +406,10 @@ export class FakeSessionService extends SessionService {
       return null;
     }
     const parts = token.slice('session:'.length).split(':');
-    return {
-      userId: parts[0],
-      sessionVersion: parts.length > 1 ? Number(parts[1]) : null,
-    };
+    if (parts.length < 2) {
+      return null;
+    }
+    return { userId: parts[0], sessionVersion: Number(parts[1]) };
   }
 }
 

@@ -6,7 +6,6 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   ApiCookieAuth,
   ApiOperation,
@@ -23,12 +22,13 @@ import { CurrentUser } from '../decorators/current-user.decorator';
 import { AuthCallbackDto } from '../dto/auth-callback.dto';
 import { RequestMagicLinkDto } from '../dto/request-magic-link.dto';
 import { SameOriginGuard } from '../guards/same-origin.guard';
-import {
-  SESSION_COOKIE_NAME,
-  SessionAuthGuard,
-  SessionUser,
-} from '../guards/session-auth.guard';
+import { SessionAuthGuard, SessionUser } from '../guards/session-auth.guard';
 import { AuthCallbackResponseDto } from '../presenters/auth-callback-response.dto';
+import {
+  SESSION_SECURITY_SCHEME,
+  sessionCookieName,
+  sessionCookieOptions,
+} from '../session-cookie';
 
 const SESSION_COOKIE_MAX_AGE_MS = SESSION_TTL * 1000;
 
@@ -39,7 +39,6 @@ export class AuthController {
     private readonly requestMagicLink: RequestMagicLinkUseCase,
     private readonly verifyMagicLink: VerifyMagicLinkUseCase,
     private readonly logoutUseCase: LogoutUseCase,
-    private readonly config: ConfigService,
   ) {}
 
   @Post('request-link')
@@ -66,12 +65,9 @@ export class AuthController {
   ): Promise<{ userId: string }> {
     const result = await this.verifyMagicLink.execute(dto.token);
 
-    res.cookie(SESSION_COOKIE_NAME, result.sessionToken, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: this.config.get<string>('NODE_ENV') === 'production',
+    res.cookie(sessionCookieName(), result.sessionToken, {
+      ...sessionCookieOptions(),
       maxAge: SESSION_COOKIE_MAX_AGE_MS,
-      path: '/',
     });
 
     return { userId: result.userId };
@@ -80,7 +76,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(204)
   @UseGuards(SameOriginGuard, SessionAuthGuard)
-  @ApiCookieAuth('auth_session')
+  @ApiCookieAuth(SESSION_SECURITY_SCHEME)
   @ApiOperation({
     summary:
       'Log out of every device: revokes all SSO sessions of the user and clears the cookie',
@@ -91,6 +87,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
     await this.logoutUseCase.execute(user.id);
-    res.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
+    // Same Secure/Path as when it was set: required to clear a __Host- cookie.
+    res.clearCookie(sessionCookieName(), sessionCookieOptions());
   }
 }

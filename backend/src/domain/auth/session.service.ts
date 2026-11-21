@@ -2,7 +2,7 @@ const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 export interface VerifiedSession {
   userId: string;
-  sessionVersion: number | null;
+  sessionVersion: number;
 }
 
 /**
@@ -15,10 +15,7 @@ export abstract class SessionService {
     sessionVersion: number,
     ttlSeconds?: number,
   ): Promise<string>;
-  /**
-   * sessionVersion is null for a legacy token issued before the sv claim existed (transitional,
-   * removed by PC9 D3).
-   */
+  /** A token without a valid sv claim (issued before PC9) is rejected. */
   abstract verify(token: string): Promise<VerifiedSession | null>;
 }
 
