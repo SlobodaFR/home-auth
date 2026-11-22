@@ -75,8 +75,9 @@ services home-* le recopient tel quel.
   l'environnement → cette valeur ; pas de valeur (`DISABLED`) ou flag inconnu (`FLAG_NOT_FOUND`) →
   défaut du code ; autre erreur (réseau, délai, 401, 429, 5xx) → dernière valeur connue, sinon défaut
   du code, mémorisé 30 s aussi, avec un warn au plus toutes les 5 min par flag et code d'erreur
-  (le message du provider distingue une clé refusée, `unauthorized`, d'une panne). Un 429 suspend
-  toutes les évaluations jusqu'au `Retry-After`. La dernière valeur connue est propre au processus :
+  (le message du provider distingue une clé refusée, `unauthorized`, d'une panne). Un 429 suit ce même
+  repli : l'adaptateur ne lit pas `Retry-After` et ne suspend pas les évaluations (la prochaine
+  tentative a lieu à l'expiration de la mémo de 30 s). La dernière valeur connue est propre au processus :
   perdue au redémarrage.
 - **Pin d'urgence** : `FEATURES_PIN_<CLE_EN_MAJ_SNAKE>=true|false` (ex.
   `FEATURES_PIN_AUTH_REFRESH_REUSE_REVOCATION=false`) l'emporte sur tout, y compris sans
