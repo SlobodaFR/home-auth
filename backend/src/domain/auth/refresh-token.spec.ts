@@ -28,6 +28,7 @@ describe('RefreshToken', () => {
 
     expect(alone.familyId).toBe('token-1');
     expect(alone.rotatedAt).toBeNull();
+    expect(alone.graceUsedAt).toBeNull();
     expect(inFamily.familyId).toBe('family-1');
   });
 });

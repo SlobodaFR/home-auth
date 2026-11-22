@@ -1,4 +1,6 @@
 import { AuthorizationCode } from '../../domain/auth/authorization-code';
+import { RefreshToken } from '../../domain/auth/refresh-token';
+import { RefreshTokenRepository } from '../../domain/auth/refresh-token.repository';
 import { Client } from '../../domain/client/client';
 import * as hash from '../../domain/shared/hash';
 import { hashSecret, hashToken } from '../../domain/shared/hash';
@@ -251,6 +253,121 @@ describe('ExchangeCodeUseCase', () => {
       );
 
       expect(deps.telemetry.names()).toEqual(['code_reused']);
+    });
+
+    const storedCode = (deps: ReturnType<typeof createUseCase>) =>
+      deps.authorizationCodeRepository.findByCodeHash(hashToken(RAW_CODE));
+
+    it('leaves a durable reuse marker on the code, whatever the flag', async () => {
+      const deps = createUseCase();
+      await seed(deps);
+      await deps.useCase.execute(input);
+      expect((await storedCode(deps))?.reusedAt).toBeNull();
+
+      await expect(deps.useCase.execute(input)).rejects.toThrow(
+        'Authorization code already used',
+      );
+
+      expect((await storedCode(deps))?.reusedAt).toBeInstanceOf(Date);
+    });
+
+    it('marks the code when it loses a concurrent redemption', async () => {
+      const deps = createUseCase();
+      await seed(deps);
+      vi.spyOn(
+        deps.authorizationCodeRepository,
+        'markRedeemed',
+      ).mockResolvedValue(false);
+
+      await expect(deps.useCase.execute(input)).rejects.toThrow(
+        'Authorization code already used',
+      );
+
+      expect((await storedCode(deps))?.reusedAt).toBeInstanceOf(Date);
+    });
+
+    it('revokes every token descending from a code redeemed again later (flag on)', async () => {
+      const deps = createUseCase();
+      await seed(deps);
+      deps.featureFlags.values.set('auth-refresh-reuse-revocation', true);
+      await deps.useCase.execute(input);
+      // The family has rotated since: the descendants keep the code hash as family id.
+      await deps.refreshTokenRepository.save(
+        RefreshToken.issue({
+          id: 'descendant',
+          tokenHash: 'descendant-hash',
+          userId: 'user-1',
+          clientId: 'budget',
+          createdAt: new Date(),
+          familyId: hashToken(RAW_CODE),
+        }),
+      );
+
+      await expect(deps.useCase.execute(input)).rejects.toThrow(
+        'Authorization code already used',
+      );
+
+      expect(
+        await deps.refreshTokenRepository.findAllForUser('user-1'),
+      ).toEqual([]);
+    });
+
+    describe('when the reuse is detected while the winner is saving its token', () => {
+      // The losing request marks the code and revokes the family before the winner inserted its
+      // refresh token: the winner must see the marker after its insert.
+      function reuseDuringSave(deps: ReturnType<typeof createUseCase>) {
+        const repository = deps.refreshTokenRepository;
+        const save: RefreshTokenRepository['save'] =
+          repository.save.bind(repository);
+        vi.spyOn(repository, 'save').mockImplementation(async (token) => {
+          await deps.authorizationCodeRepository.markReused(
+            hashToken(RAW_CODE),
+            new Date(),
+          );
+          await repository.deleteFamily(hashToken(RAW_CODE));
+          await save(token);
+        });
+      }
+
+      it('refuses the winner and takes back its token when the flag is on', async () => {
+        const deps = createUseCase();
+        await seed(deps);
+        deps.featureFlags.values.set('auth-refresh-reuse-revocation', true);
+        reuseDuringSave(deps);
+
+        await expect(deps.useCase.execute(input)).rejects.toThrow(
+          'Authorization code already used',
+        );
+
+        expect(
+          await deps.refreshTokenRepository.findAllForUser('user-1'),
+        ).toEqual([]);
+        expect(deps.telemetry.names()).toEqual([]);
+      });
+
+      it('lets the winner through while the flag is off', async () => {
+        const deps = createUseCase();
+        await seed(deps);
+        reuseDuringSave(deps);
+
+        const result = await deps.useCase.execute(input);
+
+        expect(
+          await deps.refreshTokenRepository.findByTokenHash(
+            hashToken(result.refreshToken),
+          ),
+        ).not.toBeNull();
+        expect(deps.telemetry.names()).toEqual(['token_exchanged']);
+      });
+    });
+
+    it('does not read the flag on a redemption nobody reused', async () => {
+      const deps = createUseCase();
+      await seed(deps);
+
+      await deps.useCase.execute(input);
+
+      expect(deps.featureFlags.asked).toEqual([]);
     });
 
     it('does not treat an expired, unused code as a reuse', async () => {

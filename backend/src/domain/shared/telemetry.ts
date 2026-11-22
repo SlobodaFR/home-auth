@@ -31,13 +31,15 @@ export type TelemetryEvent =
     }
   | {
       // A refresh token presented again after its rotation (PC1). `revoked`: its family was deleted.
+      // grace_exhausted: presented again within 30 s after its single grace re-issue was spent.
       name: 'refresh_reused';
       properties: {
         client_id: string;
         kind:
           | 'rotated_in_grace'
           | 'concurrent_lost_race'
-          | 'rotated_after_grace';
+          | 'rotated_after_grace'
+          | 'grace_exhausted';
         revoked: boolean;
       };
     }

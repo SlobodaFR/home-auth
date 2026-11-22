@@ -49,12 +49,17 @@ export class ExchangeCodeUseCase {
 
   /**
    * A code presented twice (PC2): its refresh token family (named after the code hash) is deleted
-   * when the flag is on, since the first redemption may have been an attacker's.
+   * when the flag is on, since the first redemption may have been an attacker's. The durable
+   * marker is written first, so a winner still saving its token sees it after its insert.
    */
   private async rejectReuse(
     clientId: string,
     code: AuthorizationCode,
   ): Promise<never> {
+    await this.authorizationCodeRepository.markReused(
+      code.codeHash,
+      new Date(),
+    );
     if (await this.featureFlags.isEnabled(REUSE_REVOCATION_FLAG, false)) {
       await this.refreshTokenRepository.deleteFamily(code.codeHash);
     }
@@ -140,6 +145,19 @@ export class ExchangeCodeUseCase {
         familyId: redeemed.codeHash,
       }),
     );
+    // A losing request may have revoked the family before our insert: it marked the code first,
+    // so checking the marker after the insert closes the race (SQLite runs statements one at a
+    // time). Edge kept: a flag flip between the loser's read and ours (30 s memo) leaks one token.
+    const afterSave = await this.authorizationCodeRepository.findByCodeHash(
+      redeemed.codeHash,
+    );
+    if (
+      afterSave?.reusedAt &&
+      (await this.featureFlags.isEnabled(REUSE_REVOCATION_FLAG, false))
+    ) {
+      await this.refreshTokenRepository.deleteFamily(redeemed.codeHash);
+      throw new UnauthorizedException('Authorization code already used');
+    }
 
     this.telemetry.capture(
       {

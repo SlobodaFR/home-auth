@@ -79,6 +79,7 @@ describe('RefreshTokenUseCase', () => {
           expiresAt,
           familyId: FAMILY_ID,
           rotatedAt: null,
+          graceUsedAt: null,
         })
       : RefreshToken.issue({
           id: randomUUID(),
@@ -430,6 +431,284 @@ describe('RefreshTokenUseCase', () => {
           },
         },
       ]);
+    });
+
+    describe('a single re-issue per rotated token (PC1 amended)', () => {
+      const presented = (deps: ReturnType<typeof createUseCase>) =>
+        deps.refreshTokenRepository.findByTokenHash(
+          hashToken(RAW_REFRESH_TOKEN),
+        );
+
+      it('spends the grace of the presented token on its re-issue', async () => {
+        const deps = createUseCase();
+        await seedRotated(deps, 10 * SECOND);
+
+        await deps.useCase.execute(input);
+
+        expect((await presented(deps))?.graceUsedAt).toBeInstanceOf(Date);
+      });
+
+      it('refuses a second presentation in the window, keeping the family while the flag is off', async () => {
+        const deps = createUseCase();
+        await seedRotated(deps, 10 * SECOND);
+        const first = await deps.useCase.execute(input);
+
+        await expect(deps.useCase.execute(input)).rejects.toThrow(
+          'Invalid refresh token',
+        );
+
+        expect(
+          await deps.refreshTokenRepository.findByTokenHash(
+            hashToken(first.refreshToken),
+          ),
+        ).not.toBeNull();
+        expect(
+          await deps.refreshTokenRepository.findByTokenHash(
+            hashToken('current'),
+          ),
+        ).not.toBeNull();
+        expect(reuseEvents(deps)).toEqual([
+          {
+            name: 'refresh_reused',
+            properties: {
+              client_id: 'budget',
+              kind: 'rotated_in_grace',
+              revoked: false,
+            },
+          },
+          {
+            name: 'refresh_reused',
+            properties: {
+              client_id: 'budget',
+              kind: 'grace_exhausted',
+              revoked: false,
+            },
+          },
+        ]);
+      });
+
+      it('revokes the whole family on a second presentation in the window when the flag is on', async () => {
+        const deps = createUseCase();
+        await seedRotated(deps, 10 * SECOND);
+        deps.featureFlags.values.set('auth-refresh-reuse-revocation', true);
+        const first = await deps.useCase.execute(input);
+
+        await expect(deps.useCase.execute(input)).rejects.toThrow(
+          'Invalid refresh token',
+        );
+
+        expect(
+          await deps.refreshTokenRepository.findAllForUser('user-1'),
+        ).toEqual([]);
+        expect(
+          await deps.refreshTokenRepository.findByTokenHash(
+            hashToken(first.refreshToken),
+          ),
+        ).toBeNull();
+        expect(reuseEvents(deps).at(-1)).toEqual({
+          name: 'refresh_reused',
+          properties: {
+            client_id: 'budget',
+            kind: 'grace_exhausted',
+            revoked: true,
+          },
+        });
+      });
+
+      it('lets a lost concurrent rotation spend the grace too', async () => {
+        const deps = createUseCase();
+        await seed(deps);
+        const repository = deps.refreshTokenRepository;
+        const markRotated: RefreshTokenRepository['markRotated'] =
+          repository.markRotated.bind(repository);
+        const spy = vi
+          .spyOn(repository, 'markRotated')
+          .mockImplementationOnce(async (id: string, at: Date) => {
+            await markRotated(id, at);
+            return false;
+          });
+
+        await deps.useCase.execute(input);
+        spy.mockRestore();
+
+        expect((await presented(deps))?.graceUsedAt).toBeInstanceOf(Date);
+        await expect(deps.useCase.execute(input)).rejects.toThrow(
+          'Invalid refresh token',
+        );
+        expect(reuseEvents(deps).map((event) => event.properties)).toEqual([
+          { client_id: 'budget', kind: 'concurrent_lost_race', revoked: false },
+          { client_id: 'budget', kind: 'grace_exhausted', revoked: false },
+        ]);
+      });
+
+      it('gives exactly two of three concurrent refreshes a pair', async () => {
+        const deps = createUseCase();
+        await seed(deps);
+
+        const results = await Promise.allSettled([
+          deps.useCase.execute(input),
+          deps.useCase.execute(input),
+          deps.useCase.execute(input),
+        ]);
+
+        expect(
+          results.filter(({ status }) => status === 'fulfilled'),
+        ).toHaveLength(2);
+        expect(
+          reuseEvents(deps).filter(
+            (event) => event.properties.kind === 'grace_exhausted',
+          ),
+        ).toHaveLength(1);
+      });
+
+      it('refuses a token deleted before it could spend its grace, as an unknown token', async () => {
+        const deps = createUseCase();
+        await seedRotated(deps, 10 * SECOND);
+        deps.featureFlags.values.set('auth-refresh-reuse-revocation', true);
+        const repository = deps.refreshTokenRepository;
+        // A logout or a revoked family between our read and our claim.
+        vi.spyOn(repository, 'claimGrace').mockImplementation(async () => {
+          await repository.deleteFamily(FAMILY_ID);
+          return false;
+        });
+
+        await expect(deps.useCase.execute(input)).rejects.toThrow(
+          'Invalid refresh token',
+        );
+
+        expect(reuseEvents(deps)).toEqual([]);
+        expect(deps.featureFlags.asked).toEqual([]);
+      });
+
+      it('takes back its new token when the family is revoked before the re-check', async () => {
+        const deps = createUseCase();
+        await seedRotated(deps, 10 * SECOND);
+        const repository = deps.refreshTokenRepository;
+        const save: RefreshTokenRepository['save'] =
+          repository.save.bind(repository);
+        // A concurrent reuse revokes the family while our new token is being inserted.
+        vi.spyOn(repository, 'save').mockImplementation(async (token) => {
+          await repository.deleteFamily(FAMILY_ID);
+          await save(token);
+        });
+
+        await expect(deps.useCase.execute(input)).rejects.toThrow(
+          'Invalid refresh token',
+        );
+
+        expect(await repository.findAllForUser('user-1')).toEqual([]);
+        expect(deps.telemetry.names()).not.toContain('token_exchanged');
+        expect(reuseEvents(deps)).toEqual([]);
+      });
+
+      it('takes back the new token of a normal rotation when the family is revoked meanwhile', async () => {
+        const deps = createUseCase();
+        await seed(deps);
+        const repository = deps.refreshTokenRepository;
+        const save: RefreshTokenRepository['save'] =
+          repository.save.bind(repository);
+        // A reuse after grace (flag on) revokes the family before our insert.
+        vi.spyOn(repository, 'save').mockImplementation(async (token) => {
+          await repository.deleteFamily(FAMILY_ID);
+          await save(token);
+        });
+
+        await expect(deps.useCase.execute(input)).rejects.toThrow(
+          'Invalid refresh token',
+        );
+
+        expect(await repository.findAllForUser('user-1')).toEqual([]);
+        expect(deps.telemetry.names()).not.toContain('token_exchanged');
+      });
+    });
+
+    describe('a token both rotated and expired', () => {
+      async function seedRotatedExpired(
+        deps: ReturnType<typeof createUseCase>,
+        rotatedAgoMs: number,
+      ) {
+        await seed(deps, new Date(Date.now() - SECOND));
+        const token = await deps.refreshTokenRepository.findByTokenHash(
+          hashToken(RAW_REFRESH_TOKEN),
+        );
+        await deps.refreshTokenRepository.markRotated(
+          token!.id,
+          new Date(Date.now() - rotatedAgoMs),
+        );
+        await deps.refreshTokenRepository.save(
+          RefreshToken.issue({
+            id: randomUUID(),
+            tokenHash: hashToken('current'),
+            userId: 'user-1',
+            clientId: 'budget',
+            createdAt: new Date(),
+            familyId: FAMILY_ID,
+          }),
+        );
+      }
+
+      it('goes through reuse detection, keeping the family while the flag is off', async () => {
+        const deps = createUseCase();
+        await seedRotatedExpired(deps, 31 * SECOND);
+
+        await expect(deps.useCase.execute(input)).rejects.toThrow(
+          'Invalid refresh token',
+        );
+
+        expect(
+          await deps.refreshTokenRepository.findByTokenHash(
+            hashToken('current'),
+          ),
+        ).not.toBeNull();
+        expect(reuseEvents(deps)).toEqual([
+          {
+            name: 'refresh_reused',
+            properties: {
+              client_id: 'budget',
+              kind: 'rotated_after_grace',
+              revoked: false,
+            },
+          },
+        ]);
+      });
+
+      it('revokes the family when the flag is on', async () => {
+        const deps = createUseCase();
+        await seedRotatedExpired(deps, 31 * SECOND);
+        deps.featureFlags.values.set('auth-refresh-reuse-revocation', true);
+
+        await expect(deps.useCase.execute(input)).rejects.toThrow(
+          'Invalid refresh token',
+        );
+
+        expect(
+          await deps.refreshTokenRepository.findAllForUser('user-1'),
+        ).toEqual([]);
+        expect(reuseEvents(deps)[0]?.properties).toMatchObject({
+          kind: 'rotated_after_grace',
+          revoked: true,
+        });
+      });
+
+      // Expiry wins over the window: an expired token never gets a pair.
+      it('gets no pair even inside the 30 s window', async () => {
+        const deps = createUseCase();
+        await seedRotatedExpired(deps, 10 * SECOND);
+
+        await expect(deps.useCase.execute(input)).rejects.toThrow(
+          'Invalid refresh token',
+        );
+
+        expect(reuseEvents(deps)[0]?.properties).toMatchObject({
+          kind: 'rotated_after_grace',
+        });
+        expect((await presented(deps))?.graceUsedAt).toBeNull();
+      });
+
+      const presented = (deps: ReturnType<typeof createUseCase>) =>
+        deps.refreshTokenRepository.findByTokenHash(
+          hashToken(RAW_REFRESH_TOKEN),
+        );
     });
 
     it('never asks the flag on a normal rotation', async () => {

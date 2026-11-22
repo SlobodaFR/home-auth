@@ -34,4 +34,8 @@ export class RefreshTokenOrmEntity {
 
   @Column({ type: 'datetime', name: 'rotated_at', nullable: true })
   rotatedAt!: Date | null;
+
+  /** Set when the single grace re-issue of this rotated token was spent (PC1, amended). */
+  @Column({ type: 'datetime', name: 'grace_used_at', nullable: true })
+  graceUsedAt!: Date | null;
 }

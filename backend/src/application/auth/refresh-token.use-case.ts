@@ -16,7 +16,11 @@ import { FeatureFlags } from '../../domain/shared/feature-flags';
 import { Telemetry } from '../../domain/shared/telemetry';
 import { UserRepository } from '../../domain/user/user.repository';
 import { TokenPair } from './exchange-code.use-case';
-import { REFRESH_GRACE_MS, REUSE_REVOCATION_FLAG } from './token-reuse';
+import {
+  REFRESH_GRACE_MS,
+  REUSE_REVOCATION_FLAG,
+  RefreshReuseKind,
+} from './token-reuse';
 
 export interface RefreshTokenInput {
   refreshToken: string;
@@ -38,7 +42,7 @@ export class RefreshTokenUseCase {
   private reportReuse(
     clientId: string,
     userId: string,
-    kind: 'rotated_in_grace' | 'concurrent_lost_race' | 'rotated_after_grace',
+    kind: RefreshReuseKind,
     revoked: boolean,
   ): void {
     this.telemetry.capture(
@@ -48,6 +52,23 @@ export class RefreshTokenUseCase {
       },
       userId,
     );
+  }
+
+  /** A reuse that gets no pair: 401, and the family deleted when the flag is on (PC1). */
+  private async rejectReuse(
+    clientId: string,
+    token: RefreshToken,
+    kind: 'rotated_after_grace' | 'grace_exhausted',
+  ): Promise<never> {
+    const revoke = await this.featureFlags.isEnabled(
+      REUSE_REVOCATION_FLAG,
+      false,
+    );
+    if (revoke) {
+      await this.refreshTokenRepository.deleteFamily(token.familyId);
+    }
+    this.reportReuse(clientId, token.userId, kind, revoke);
+    throw new UnauthorizedException('Invalid refresh token');
   }
 
   async execute(input: RefreshTokenInput): Promise<TokenPair> {
@@ -67,7 +88,9 @@ export class RefreshTokenUseCase {
     if (existing?.clientId !== input.clientId) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    if (existing.isExpired()) {
+    const now = new Date();
+    // Rotated before expired: a rotated token presented again is a reuse even once expired.
+    if (existing.rotatedAt === null && existing.isExpired(now)) {
       await this.refreshTokenRepository.deleteById(existing.id);
       throw new UnauthorizedException('Refresh token expired');
     }
@@ -79,7 +102,6 @@ export class RefreshTokenUseCase {
 
     // Rotate: the presented token is kept, marked rotated, so a later presentation is a reuse.
     // Only the atomic update decides who rotated it (PC1).
-    const now = new Date();
     let reuse: {
       rotatedAt: Date;
       kind: 'rotated_in_grace' | 'concurrent_lost_race';
@@ -101,32 +123,50 @@ export class RefreshTokenUseCase {
     }
 
     if (reuse) {
-      if (now.getTime() - reuse.rotatedAt.getTime() > REFRESH_GRACE_MS) {
-        const revoke = await this.featureFlags.isEnabled(
-          REUSE_REVOCATION_FLAG,
-          false,
-        );
-        if (revoke) {
-          await this.refreshTokenRepository.deleteFamily(existing.familyId);
-        }
-        this.reportReuse(client.id, user.id, 'rotated_after_grace', revoke);
-        throw new UnauthorizedException('Invalid refresh token');
+      // Expiry wins over the window: an expired token never gets a pair.
+      const inWindow =
+        !existing.isExpired(now) &&
+        now.getTime() - reuse.rotatedAt.getTime() <= REFRESH_GRACE_MS;
+      if (!inWindow) {
+        return this.rejectReuse(client.id, existing, 'rotated_after_grace');
       }
-      // Within 30 s (client lost the new pair, concurrent requests): same family, new pair.
-      this.reportReuse(client.id, user.id, reuse.kind, false);
+      // Within 30 s (client lost the new pair, concurrent requests): ONE new pair in the same
+      // family per rotated token (PC1 amended). The atomic claim decides who gets it.
+      if (!(await this.refreshTokenRepository.claimGrace(existing.id, now))) {
+        if (
+          !(await this.refreshTokenRepository.findByTokenHash(
+            existing.tokenHash,
+          ))
+        ) {
+          // Deleted meanwhile (logout, revoked family): not a new reuse.
+          throw new UnauthorizedException('Invalid refresh token');
+        }
+        return this.rejectReuse(client.id, existing, 'grace_exhausted');
+      }
     }
 
     const rawRefreshToken = randomBytes(32).toString('hex');
-    await this.refreshTokenRepository.save(
-      RefreshToken.issue({
-        id: randomUUID(),
-        tokenHash: hashToken(rawRefreshToken),
-        userId: user.id,
-        clientId: client.id,
-        createdAt: now,
-        familyId: existing.familyId,
-      }),
-    );
+    const issued = RefreshToken.issue({
+      id: randomUUID(),
+      tokenHash: hashToken(rawRefreshToken),
+      userId: user.id,
+      clientId: client.id,
+      createdAt: now,
+      familyId: existing.familyId,
+    });
+    await this.refreshTokenRepository.save(issued);
+    // A concurrent reuse (flag on), or a logout, may have deleted the family between our atomic
+    // update and our insert. The presented row (rotated, kept 24 h) is gone in that case: take
+    // the new token back rather than hand out a live token of a revoked family.
+    if (
+      !(await this.refreshTokenRepository.findByTokenHash(existing.tokenHash))
+    ) {
+      await this.refreshTokenRepository.deleteById(issued.id);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+    if (reuse) {
+      this.reportReuse(client.id, user.id, reuse.kind, false);
+    }
 
     const accessToken = await this.tokenService.signAccessToken({
       sub: user.id,

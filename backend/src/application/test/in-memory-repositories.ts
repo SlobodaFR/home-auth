@@ -2,7 +2,10 @@ import { AuthorizationCode } from '../../domain/auth/authorization-code';
 import { AuthorizationCodeRepository } from '../../domain/auth/authorization-code.repository';
 import { MagicLinkToken } from '../../domain/auth/magic-link-token';
 import { MagicLinkTokenRepository } from '../../domain/auth/magic-link-token.repository';
-import { RefreshToken } from '../../domain/auth/refresh-token';
+import {
+  RefreshToken,
+  RefreshTokenProps,
+} from '../../domain/auth/refresh-token';
 import { RefreshTokenRepository } from '../../domain/auth/refresh-token.repository';
 import { SessionService } from '../../domain/auth/session.service';
 import {
@@ -180,6 +183,26 @@ export class InMemoryAuthorizationCodeRepository extends AuthorizationCodeReposi
     this.codes.set(codeHash, code.redeem(now));
     return true;
   }
+
+  async markReused(codeHash: string, at: Date): Promise<void> {
+    const code = this.codes.get(codeHash);
+    if (!code || code.reusedAt) {
+      return;
+    }
+    this.codes.set(
+      codeHash,
+      AuthorizationCode.fromPersistence({
+        codeHash: code.codeHash,
+        userId: code.userId,
+        clientId: code.clientId,
+        redirectUri: code.redirectUri,
+        expiresAt: code.expiresAt,
+        used: code.used,
+        codeChallenge: code.codeChallenge,
+        reusedAt: at,
+      }),
+    );
+  }
 }
 
 export class InMemoryRefreshTokenRepository extends RefreshTokenRepository {
@@ -205,24 +228,40 @@ export class InMemoryRefreshTokenRepository extends RefreshTokenRepository {
     this.tokens.delete(id);
   }
 
+  private with(
+    token: RefreshToken,
+    changes: Partial<Pick<RefreshTokenProps, 'rotatedAt' | 'graceUsedAt'>>,
+  ): RefreshToken {
+    return RefreshToken.fromPersistence({
+      id: token.id,
+      tokenHash: token.tokenHash,
+      userId: token.userId,
+      clientId: token.clientId,
+      expiresAt: token.expiresAt,
+      createdAt: token.createdAt,
+      familyId: token.familyId,
+      rotatedAt: token.rotatedAt,
+      graceUsedAt: token.graceUsedAt,
+      ...changes,
+    });
+  }
+
   async markRotated(id: string, at: Date): Promise<boolean> {
     const token = this.tokens.get(id);
     if (!token || token.rotatedAt) {
       return false;
     }
-    this.tokens.set(
-      id,
-      RefreshToken.fromPersistence({
-        id: token.id,
-        tokenHash: token.tokenHash,
-        userId: token.userId,
-        clientId: token.clientId,
-        expiresAt: token.expiresAt,
-        createdAt: token.createdAt,
-        familyId: token.familyId,
-        rotatedAt: at,
-      }),
-    );
+    this.tokens.set(id, this.with(token, { rotatedAt: at }));
+    return true;
+  }
+
+  async claimGrace(id: string, at: Date): Promise<boolean> {
+    // Check-and-set with no await in between: atomic on the event loop.
+    const token = this.tokens.get(id);
+    if (!token?.rotatedAt || token.graceUsedAt) {
+      return false;
+    }
+    this.tokens.set(id, this.with(token, { graceUsedAt: at }));
     return true;
   }
 

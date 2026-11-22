@@ -11,6 +11,11 @@ export abstract class AuthorizationCodeRepository {
    * redeemed it first (or it expired): the single-use guarantee lives here, not in a read-then-write.
    */
   abstract markRedeemed(codeHash: string, now: Date): Promise<boolean>;
+  /**
+   * Records, once, that the code was presented again (PC2 durable reuse marker). Keeps the first
+   * date; a no-op for an unknown code.
+   */
+  abstract markReused(codeHash: string, at: Date): Promise<void>;
   /** Deletes the tokens whose expiry is before `date`; returns how many were deleted. */
   abstract deleteExpiredBefore(date: Date): Promise<number>;
 }

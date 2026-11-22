@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { ENTITIES } from './entities';
 import { MIGRATIONS } from './migrations';
 import { InitialSchema1794400000000 } from './migrations/1794400000000-InitialSchema';
+import { AddRefreshTokenFamilies1794800000000 } from './migrations/1794800000000-AddRefreshTokenFamilies';
 
 function dataSource(database: string, synchronize = false): DataSource {
   return new DataSource({
@@ -121,6 +122,49 @@ describe('database migrations', () => {
         'SELECT id, family_id, rotated_at FROM refresh_tokens',
       ),
     ).toEqual([{ id: 'rt1', family_id: 'rt1', rotated_at: null }]);
+    await migrated.destroy();
+  });
+
+  it('add empty reuse markers to a database at the previous schema, keeping its rows', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'db-')), 'prod.sqlite');
+    const before = new DataSource({
+      type: 'better-sqlite3',
+      database: file,
+      migrations: [
+        InitialSchema1794400000000,
+        AddRefreshTokenFamilies1794800000000,
+      ],
+    });
+    await before.initialize();
+    await before.runMigrations();
+    await before.query(
+      "INSERT INTO refresh_tokens (id, token_hash, user_id, client_id, expires_at, family_id, rotated_at) VALUES ('rt1', 'h1', 'u1', 'budget', datetime('now', '+1 day'), 'f1', datetime('now'))",
+    );
+    await before.query(
+      "INSERT INTO authorization_codes (code_hash, user_id, client_id, redirect_uri, expires_at, used) VALUES ('c1', 'u1', 'budget', 'https://b/cb', datetime('now', '+1 minute'), 1)",
+    );
+    await before.destroy();
+
+    const migrated = dataSource(file);
+    await migrated.initialize();
+    const applied = await migrated.runMigrations();
+
+    expect(applied.map((migration) => migration.name)).toEqual([
+      'AddTokenReuseMarkers1794900000000',
+    ]);
+    expect(
+      await migrated.query(
+        'SELECT id, family_id, grace_used_at FROM refresh_tokens',
+      ),
+    ).toEqual([{ id: 'rt1', family_id: 'f1', grace_used_at: null }]);
+    expect(
+      await migrated.query(
+        'SELECT code_hash, used, reused_at FROM authorization_codes',
+      ),
+    ).toEqual([{ code_hash: 'c1', used: 1, reused_at: null }]);
+    expect(
+      (await migrated.driver.createSchemaBuilder().log()).upQueries,
+    ).toEqual([]);
     await migrated.destroy();
   });
 });

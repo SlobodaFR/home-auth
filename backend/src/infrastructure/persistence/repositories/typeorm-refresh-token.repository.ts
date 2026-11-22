@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, LessThan, Repository } from 'typeorm';
+import { IsNull, LessThan, Not, Repository } from 'typeorm';
 import { RefreshToken } from '../../../domain/auth/refresh-token';
 import { RefreshTokenRepository } from '../../../domain/auth/refresh-token.repository';
 import { RefreshTokenOrmEntity } from '../entities/refresh-token.orm-entity';
@@ -24,6 +24,7 @@ export class TypeOrmRefreshTokenRepository extends RefreshTokenRepository {
       createdAt: token.createdAt,
       familyId: token.familyId,
       rotatedAt: token.rotatedAt,
+      graceUsedAt: token.graceUsedAt,
     });
   }
 
@@ -46,6 +47,15 @@ export class TypeOrmRefreshTokenRepository extends RefreshTokenRepository {
     const result = await this.repository.update(
       { id, rotatedAt: IsNull() },
       { rotatedAt: at },
+    );
+    return result.affected === 1;
+  }
+
+  async claimGrace(id: string, at: Date): Promise<boolean> {
+    // Single conditional UPDATE, as markRotated: one caller spends the grace.
+    const result = await this.repository.update(
+      { id, rotatedAt: Not(IsNull()), graceUsedAt: IsNull() },
+      { graceUsedAt: at },
     );
     return result.affected === 1;
   }
@@ -79,6 +89,7 @@ export class TypeOrmRefreshTokenRepository extends RefreshTokenRepository {
       createdAt: row.createdAt,
       familyId: row.familyId ?? row.id,
       rotatedAt: row.rotatedAt,
+      graceUsedAt: row.graceUsedAt,
     });
   }
 }
