@@ -111,7 +111,7 @@ jobs:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ env.VPS_SSH_KEY }}
-          source: 'deploy/docker-compose.yml,deploy/scripts/update-vps.sh,deploy/Caddyfile'
+          source: 'deploy/docker-compose.yml,deploy/scripts/update-vps.sh,deploy/scripts/pre-deploy-backup.sh,deploy/scripts/restore-sqlite-backup.sh,deploy/Caddyfile'
           target: /opt/auth-service
           strip_components: 0
 
@@ -126,6 +126,10 @@ jobs:
           script: |
             exec 9>/tmp/home-deploy.lock
             flock -w 900 9 || { echo "deploy lock timeout"; exit 1; }
+            bash /opt/auth-service/deploy/scripts/pre-deploy-backup.sh \
+              --service auth --project auth-service --volume auth-data \
+              --mount /app/backend/data --db-path /app/backend/data/sso.sqlite --tag "$IMAGE_TAG" \
+              || { echo "pre-deploy backup failed: deploy aborted"; exit 1; }
             echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             chmod +x /opt/auth-service/deploy/scripts/update-vps.sh
             sh /opt/auth-service/deploy/scripts/update-vps.sh
