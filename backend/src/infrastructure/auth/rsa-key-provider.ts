@@ -1,15 +1,17 @@
-import { createHash, generateKeyPairSync } from 'crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { createHash } from 'crypto';
+import { dirname } from 'path';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { exportJWK, importPKCS8, importSPKI, JWK, KeyLike } from 'jose';
+import { resolveJwtKeyMaterial } from './jwt-key-material';
 
 /**
  * Loads the RS256 key pair used to sign access tokens and the SSO session
- * cookie, exposed via /.well-known/jwks.json. Keys come from
- * JWT_PRIVATE_KEY/JWT_PUBLIC_KEY env vars if set, otherwise are generated
- * once and persisted next to the SQLite database.
+ * cookie, exposed via /.well-known/jwks.json. Keys come from the env
+ * (JWT_PRIVATE_KEY_B64/JWT_PUBLIC_KEY_B64, or raw JWT_PRIVATE_KEY/
+ * JWT_PUBLIC_KEY) if set, otherwise from the PEM files next to the SQLite
+ * database, generated once if absent. When both exist they must be the same
+ * pair or startup is refused (see jwt-key-material.ts).
  */
 @Injectable()
 export class RsaKeyProvider implements OnModuleInit {
@@ -18,10 +20,23 @@ export class RsaKeyProvider implements OnModuleInit {
   private publicJwk!: JWK;
   private keyId!: string;
 
+  private readonly logger = new Logger(RsaKeyProvider.name);
+
   constructor(private readonly config: ConfigService) {}
 
   async onModuleInit(): Promise<void> {
-    const { privateKeyPem, publicKeyPem } = this.loadOrGenerateKeyPair();
+    const { privateKeyPem, publicKeyPem, source, fingerprint } =
+      resolveJwtKeyMaterial({
+        env: {
+          JWT_PRIVATE_KEY: this.config.get<string>('JWT_PRIVATE_KEY'),
+          JWT_PUBLIC_KEY: this.config.get<string>('JWT_PUBLIC_KEY'),
+          JWT_PRIVATE_KEY_B64: this.config.get<string>('JWT_PRIVATE_KEY_B64'),
+          JWT_PUBLIC_KEY_B64: this.config.get<string>('JWT_PUBLIC_KEY_B64'),
+        },
+        dataDir: dirname(
+          this.config.get<string>('DATABASE_PATH', 'data/auth.sqlite'),
+        ),
+      });
     this.privateKey = await importPKCS8(privateKeyPem, 'RS256');
     this.publicKey = await importSPKI(publicKeyPem, 'RS256');
     this.keyId = createHash('sha256')
@@ -34,6 +49,9 @@ export class RsaKeyProvider implements OnModuleInit {
       alg: 'RS256',
       use: 'sig',
     };
+    this.logger.log(
+      `JWT signing key ready: source=${source} kid=${this.keyId} fingerprint=sha256:${fingerprint}`,
+    );
   }
 
   getPrivateKey(): KeyLike {
@@ -51,47 +69,4 @@ export class RsaKeyProvider implements OnModuleInit {
   getPublicJwk(): JWK {
     return this.publicJwk;
   }
-
-  private loadOrGenerateKeyPair(): {
-    privateKeyPem: string;
-    publicKeyPem: string;
-  } {
-    const envPrivateKey = this.config.get<string>('JWT_PRIVATE_KEY');
-    const envPublicKey = this.config.get<string>('JWT_PUBLIC_KEY');
-    if (envPrivateKey && envPublicKey) {
-      return {
-        privateKeyPem: normalizePem(envPrivateKey),
-        publicKeyPem: normalizePem(envPublicKey),
-      };
-    }
-
-    const dataDir = dirname(
-      this.config.get<string>('DATABASE_PATH', 'data/auth.sqlite'),
-    );
-    const privateKeyPath = join(dataDir, 'jwt-private.pem');
-    const publicKeyPath = join(dataDir, 'jwt-public.pem');
-
-    if (existsSync(privateKeyPath) && existsSync(publicKeyPath)) {
-      return {
-        privateKeyPem: readFileSync(privateKeyPath, 'utf8'),
-        publicKeyPem: readFileSync(publicKeyPath, 'utf8'),
-      };
-    }
-
-    const { privateKey, publicKey } = generateKeyPairSync('rsa', {
-      modulusLength: 2048,
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-      publicKeyEncoding: { type: 'spki', format: 'pem' },
-    });
-
-    mkdirSync(dataDir, { recursive: true });
-    writeFileSync(privateKeyPath, privateKey, { mode: 0o600 });
-    writeFileSync(publicKeyPath, publicKey);
-
-    return { privateKeyPem: privateKey, publicKeyPem: publicKey };
-  }
-}
-
-function normalizePem(value: string): string {
-  return value.includes('\\n') ? value.replace(/\\n/g, '\n') : value;
 }
