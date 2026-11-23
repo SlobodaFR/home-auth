@@ -13,6 +13,9 @@ export function AdminUsersPage() {
   const [name, setName] = useState('');
   const [inviting, setInviting] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<AdminUser | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState(false);
   const { user: currentUser } = useAuth();
 
   // Reloads keep the list (and an open user modal) on screen: only the first load shows the placeholder.
@@ -54,6 +57,22 @@ export function AdminUsersPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
+    }
+  }
+
+  async function handleRevokeSessions(user: AdminUser) {
+    setError(null);
+    setNotice(null);
+    setRevoking(true);
+    try {
+      await apiClient.revokeUserSessions(user.id);
+      setRevokeTarget(null);
+      setNotice(`${user.name} a ete deconnecte de tous ses appareils.`);
+    } catch (err) {
+      setRevokeTarget(null);
+      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+    } finally {
+      setRevoking(false);
     }
   }
 
@@ -164,6 +183,14 @@ export function AdminUsersPage() {
       {error && (
         <p className="font-caption text-caption text-error mb-md">{error}</p>
       )}
+      {notice && (
+        <p
+          role="status"
+          className="font-caption text-caption text-secondary mb-md"
+        >
+          {notice}
+        </p>
+      )}
 
       <div className="bg-canvas border border-hairline rounded-xl overflow-hidden">
         {loading ? (
@@ -267,13 +294,26 @@ export function AdminUsersPage() {
                     </td>
                     <td className="px-lg py-md text-right">
                       {user.id !== currentUser?.id && (
-                        <button
-                          type="button"
-                          onClick={() => void toggleAdmin(user)}
-                          className="font-label-sm text-label-sm text-mute hover:text-primary transition-colors uppercase"
-                        >
-                          {user.isAdmin ? 'Retirer admin' : 'Rendre admin'}
-                        </button>
+                        <div className="flex flex-col items-end gap-xs">
+                          <button
+                            type="button"
+                            onClick={() => void toggleAdmin(user)}
+                            className="font-label-sm text-label-sm text-mute hover:text-primary transition-colors uppercase"
+                          >
+                            {user.isAdmin ? 'Retirer admin' : 'Rendre admin'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setError(null);
+                              setNotice(null);
+                              setRevokeTarget(user);
+                            }}
+                            className="font-label-sm text-label-sm text-mute hover:text-error transition-colors uppercase"
+                          >
+                            Revoquer les sessions
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -316,15 +356,28 @@ export function AdminUsersPage() {
               Vous ne pouvez pas modifier vos propres droits admin.
             </p>
           ) : (
-            <button
-              type="button"
-              onClick={() => void toggleAdmin(selectedUser)}
-              className="w-full px-lg py-sm border border-hairline rounded-lg font-button-md text-button-md text-charcoal hover:bg-soft-cloud transition-all"
-            >
-              {selectedUser.isAdmin
-                ? 'Retirer les droits admin'
-                : 'Rendre admin'}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => void toggleAdmin(selectedUser)}
+                className="w-full px-lg py-sm border border-hairline rounded-lg font-button-md text-button-md text-charcoal hover:bg-soft-cloud transition-all"
+              >
+                {selectedUser.isAdmin
+                  ? 'Retirer les droits admin'
+                  : 'Rendre admin'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setNotice(null);
+                  setSelectedUserId(null);
+                  setRevokeTarget(selectedUser);
+                }}
+                className="w-full px-lg py-sm border border-hairline rounded-lg font-button-md text-button-md text-error hover:bg-soft-cloud transition-all"
+              >
+                Revoquer les sessions
+              </button>
+            </>
           )}
           {/* The page-level error sits behind the modal (inert background): repeat it here. */}
           {error && (
@@ -332,6 +385,35 @@ export function AdminUsersPage() {
               {error}
             </p>
           )}
+        </Modal>
+      )}
+
+      {revokeTarget && (
+        <Modal
+          title={`Revoquer les sessions de ${revokeTarget.name} ?`}
+          onClose={() => setRevokeTarget(null)}
+        >
+          <p className="font-body-md text-body-md text-mute">
+            {revokeTarget.name} sera deconnecte de tous ses appareils et de
+            toutes les applications. Il devra se reconnecter par lien magique.
+          </p>
+          <div className="flex gap-md">
+            <button
+              type="button"
+              onClick={() => void handleRevokeSessions(revokeTarget)}
+              disabled={revoking}
+              className="flex-1 px-lg py-sm bg-error text-white rounded-lg font-button-md text-button-md hover:opacity-90 transition-all disabled:opacity-50"
+            >
+              {revoking ? 'Revocation...' : 'Revoquer'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setRevokeTarget(null)}
+              className="flex-1 px-lg py-sm border border-hairline rounded-lg font-button-md text-button-md text-charcoal hover:bg-soft-cloud transition-all"
+            >
+              Annuler
+            </button>
+          </div>
         </Modal>
       )}
 

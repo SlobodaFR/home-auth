@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -15,6 +16,7 @@ import {
 } from '@nestjs/swagger';
 import { InviteUserUseCase } from '../../../application/admin/invite-user.use-case';
 import { ListUsersUseCase } from '../../../application/admin/list-users.use-case';
+import { RevokeUserSessionsUseCase } from '../../../application/admin/revoke-user-sessions.use-case';
 import { UpdateUserUseCase } from '../../../application/admin/update-user.use-case';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { InviteUserDto } from '../dto/invite-user.dto';
@@ -35,6 +37,7 @@ export class AdminUsersController {
     private readonly listUsersUseCase: ListUsersUseCase,
     private readonly inviteUserUseCase: InviteUserUseCase,
     private readonly updateUserUseCase: UpdateUserUseCase,
+    private readonly revokeUserSessionsUseCase: RevokeUserSessionsUseCase,
   ) {}
 
   @Get()
@@ -64,5 +67,18 @@ export class AdminUsersController {
     @Body() dto: UpdateUserDto,
   ): Promise<UserDto> {
     return toUserDto(await this.updateUserUseCase.execute(actor.id, id, dto));
+  }
+
+  @Post(':id/revoke-sessions')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Sign a user out of every device',
+    description:
+      "Invalidates all the user's SSO sessions, revokes their refresh tokens and notifies the client apps (same as the user's own logout). Access tokens already issued live until their expiry (15 min).",
+  })
+  @ApiResponse({ status: 204, description: 'Sessions revoked' })
+  @ApiResponse({ status: 404, description: 'Unknown user' })
+  async revokeSessions(@Param('id') id: string): Promise<void> {
+    await this.revokeUserSessionsUseCase.execute(id);
   }
 }

@@ -5,6 +5,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { InviteUserUseCase } from '../../application/admin/invite-user.use-case';
 import { ListUsersUseCase } from '../../application/admin/list-users.use-case';
+import { RevokeUserSessionsUseCase } from '../../application/admin/revoke-user-sessions.use-case';
 import { UpdateUserUseCase } from '../../application/admin/update-user.use-case';
 import { User } from '../../domain/user/user';
 import { AdminUsersController } from './controllers/admin-users.controller';
@@ -32,6 +33,7 @@ describe('CSRF protection on admin routes (HTTP)', () => {
         { provide: InviteUserUseCase, useValue: { execute: invite } },
         { provide: ListUsersUseCase, useValue: {} },
         { provide: UpdateUserUseCase, useValue: {} },
+        { provide: RevokeUserSessionsUseCase, useValue: {} },
         {
           provide: ConfigService,
           useValue: new ConfigService({

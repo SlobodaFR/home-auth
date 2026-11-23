@@ -120,6 +120,12 @@ export const apiClient = {
     return sendJson(`/admin/users/${id}`, 'PATCH', payload);
   },
 
+  async revokeUserSessions(id: string): Promise<void> {
+    await request(`/admin/users/${encodeURIComponent(id)}/revoke-sessions`, {
+      method: 'POST',
+    });
+  },
+
   fetchClients(): Promise<AdminClientSummary[]> {
     return request<AdminClientSummary[]>('/admin/clients');
   },
