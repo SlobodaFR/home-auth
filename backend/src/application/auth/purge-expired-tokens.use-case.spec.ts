@@ -97,4 +97,22 @@ describe('PurgeExpiredTokensUseCase', () => {
     expect(MAGIC_LINK_RETENTION_MS).toBe(7 * DAY);
     expect(AUTHORIZATION_CODE_RETENTION_MS).toBe(DAY);
   });
+
+  it('deletes refresh tokens rotated more than 24 h ago (PC1)', async () => {
+    const { useCase, refreshTokens } = createUseCase();
+    await refreshTokens.save(refresh('rotated-old', ago(2 * DAY)));
+    await refreshTokens.save(refresh('rotated-recent', ago(2 * DAY)));
+    await refreshTokens.save(refresh('current', ago(2 * DAY)));
+    await refreshTokens.markRotated('rotated-old', ago(DAY + MINUTE));
+    await refreshTokens.markRotated('rotated-recent', ago(DAY - MINUTE));
+
+    const result = await useCase.execute(NOW);
+
+    expect(result.refreshTokens).toBe(1);
+    expect(await refreshTokens.findByTokenHash('r-rotated-old')).toBeNull();
+    expect(
+      await refreshTokens.findByTokenHash('r-rotated-recent'),
+    ).not.toBeNull();
+    expect(await refreshTokens.findByTokenHash('r-current')).not.toBeNull();
+  });
 });

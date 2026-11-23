@@ -12,9 +12,11 @@ import {
 } from '../../domain/auth/token.service';
 import { ClientRepository } from '../../domain/client/client.repository';
 import { hashToken, verifySecret } from '../../domain/shared/hash';
+import { FeatureFlags } from '../../domain/shared/feature-flags';
 import { Telemetry } from '../../domain/shared/telemetry';
 import { UserRepository } from '../../domain/user/user.repository';
 import { TokenPair } from './exchange-code.use-case';
+import { REFRESH_GRACE_MS, REUSE_REVOCATION_FLAG } from './token-reuse';
 
 export interface RefreshTokenInput {
   refreshToken: string;
@@ -30,7 +32,23 @@ export class RefreshTokenUseCase {
     private readonly userRepository: UserRepository,
     private readonly tokenService: TokenService,
     private readonly telemetry: Telemetry,
+    private readonly featureFlags: FeatureFlags,
   ) {}
+
+  private reportReuse(
+    clientId: string,
+    userId: string,
+    kind: 'rotated_in_grace' | 'concurrent_lost_race' | 'rotated_after_grace',
+    revoked: boolean,
+  ): void {
+    this.telemetry.capture(
+      {
+        name: 'refresh_reused',
+        properties: { client_id: clientId, kind, revoked },
+      },
+      userId,
+    );
+  }
 
   async execute(input: RefreshTokenInput): Promise<TokenPair> {
     const client = await this.clientRepository.findById(input.clientId);
@@ -59,8 +77,44 @@ export class RefreshTokenUseCase {
       throw new NotFoundException(`User ${existing.userId} not found`);
     }
 
-    // Rotate: delete the old refresh token and issue a new one.
-    await this.refreshTokenRepository.deleteById(existing.id);
+    // Rotate: the presented token is kept, marked rotated, so a later presentation is a reuse.
+    // Only the atomic update decides who rotated it (PC1).
+    const now = new Date();
+    let reuse: {
+      rotatedAt: Date;
+      kind: 'rotated_in_grace' | 'concurrent_lost_race';
+    } | null = null;
+    if (existing.rotatedAt !== null) {
+      reuse = { rotatedAt: existing.rotatedAt, kind: 'rotated_in_grace' };
+    } else if (
+      !(await this.refreshTokenRepository.markRotated(existing.id, now))
+    ) {
+      // Lost to a concurrent rotation, or deleted meanwhile (logout, revoked family, purge):
+      // a deleted token must not come back as a new pair.
+      const current = await this.refreshTokenRepository.findByTokenHash(
+        existing.tokenHash,
+      );
+      if (!current?.rotatedAt) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      reuse = { rotatedAt: current.rotatedAt, kind: 'concurrent_lost_race' };
+    }
+
+    if (reuse) {
+      if (now.getTime() - reuse.rotatedAt.getTime() > REFRESH_GRACE_MS) {
+        const revoke = await this.featureFlags.isEnabled(
+          REUSE_REVOCATION_FLAG,
+          false,
+        );
+        if (revoke) {
+          await this.refreshTokenRepository.deleteFamily(existing.familyId);
+        }
+        this.reportReuse(client.id, user.id, 'rotated_after_grace', revoke);
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      // Within 30 s (client lost the new pair, concurrent requests): same family, new pair.
+      this.reportReuse(client.id, user.id, reuse.kind, false);
+    }
 
     const rawRefreshToken = randomBytes(32).toString('hex');
     await this.refreshTokenRepository.save(
@@ -69,7 +123,7 @@ export class RefreshTokenUseCase {
         tokenHash: hashToken(rawRefreshToken),
         userId: user.id,
         clientId: client.id,
-        createdAt: new Date(),
+        createdAt: now,
         familyId: existing.familyId,
       }),
     );

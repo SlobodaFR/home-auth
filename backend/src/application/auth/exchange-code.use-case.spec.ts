@@ -4,6 +4,7 @@ import * as hash from '../../domain/shared/hash';
 import { hashSecret, hashToken } from '../../domain/shared/hash';
 import { User } from '../../domain/user/user';
 import {
+  FakeFeatureFlags,
   FakeTelemetry,
   FakeTokenService,
   InMemoryAuthorizationCodeRepository,
@@ -26,6 +27,7 @@ describe('ExchangeCodeUseCase', () => {
     const userRepository = new InMemoryUserRepository();
     const tokenService = new FakeTokenService();
     const telemetry = new FakeTelemetry();
+    const featureFlags = new FakeFeatureFlags();
     const useCase = new ExchangeCodeUseCase(
       clientRepository,
       authorizationCodeRepository,
@@ -33,10 +35,12 @@ describe('ExchangeCodeUseCase', () => {
       userRepository,
       tokenService,
       telemetry,
+      featureFlags,
     );
     return {
       useCase,
       telemetry,
+      featureFlags,
       clientRepository,
       authorizationCodeRepository,
       refreshTokenRepository,
@@ -178,6 +182,93 @@ describe('ExchangeCodeUseCase', () => {
         redirectUri: REDIRECT_URI,
       }),
     ).rejects.toThrow('Authorization code already used');
+  });
+
+  describe('reuse of a code (PC2)', () => {
+    const input = {
+      code: RAW_CODE,
+      clientId: 'budget',
+      clientSecret: RAW_SECRET,
+      redirectUri: REDIRECT_URI,
+    };
+
+    it('reports it and keeps the tokens it issued while the flag is off', async () => {
+      const deps = createUseCase();
+      await seed(deps);
+      const first = await deps.useCase.execute(input);
+
+      await expect(deps.useCase.execute(input)).rejects.toThrow(
+        'Authorization code already used',
+      );
+
+      expect(
+        await deps.refreshTokenRepository.findByTokenHash(
+          hashToken(first.refreshToken),
+        ),
+      ).not.toBeNull();
+      expect(deps.featureFlags.asked).toEqual([
+        'auth-refresh-reuse-revocation',
+      ]);
+      expect(
+        deps.telemetry.captured.filter(
+          ({ event }) => event.name === 'code_reused',
+        ),
+      ).toEqual([
+        {
+          event: { name: 'code_reused', properties: { client_id: 'budget' } },
+          userId: 'user-1',
+        },
+      ]);
+    });
+
+    it('revokes the refresh tokens descending from the code when the flag is on', async () => {
+      const deps = createUseCase();
+      await seed(deps);
+      deps.featureFlags.values.set('auth-refresh-reuse-revocation', true);
+      const first = await deps.useCase.execute(input);
+
+      await expect(deps.useCase.execute(input)).rejects.toThrow(
+        'Authorization code already used',
+      );
+
+      expect(
+        await deps.refreshTokenRepository.findByTokenHash(
+          hashToken(first.refreshToken),
+        ),
+      ).toBeNull();
+    });
+
+    it('treats a lost concurrent redemption as a reuse', async () => {
+      const deps = createUseCase();
+      await seed(deps);
+      vi.spyOn(
+        deps.authorizationCodeRepository,
+        'markRedeemed',
+      ).mockResolvedValue(false);
+
+      await expect(deps.useCase.execute(input)).rejects.toThrow(
+        'Authorization code already used',
+      );
+
+      expect(deps.telemetry.names()).toEqual(['code_reused']);
+    });
+
+    it('does not treat an expired, unused code as a reuse', async () => {
+      const deps = createUseCase();
+      await seed(deps);
+      vi.useFakeTimers();
+      vi.setSystemTime(Date.now() + 24 * 60 * 60 * 1000);
+
+      try {
+        await expect(deps.useCase.execute(input)).rejects.toThrow(
+          'Authorization code expired',
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+      expect(deps.featureFlags.asked).toEqual([]);
+      expect(deps.telemetry.names()).toEqual([]);
+    });
   });
 
   it('rejects a redirect_uri mismatch', async () => {

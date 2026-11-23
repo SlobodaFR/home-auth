@@ -21,6 +21,7 @@ import {
   StoredAvatar,
 } from '../../domain/shared/avatar-storage';
 import { EmailMessage, EmailSender } from '../../domain/shared/email-sender';
+import { FeatureFlags } from '../../domain/shared/feature-flags';
 import { Telemetry, TelemetryEvent } from '../../domain/shared/telemetry';
 import { WebhookNotifier } from '../../domain/shared/webhook-notifier';
 import { User } from '../../domain/user/user';
@@ -225,6 +226,17 @@ export class InMemoryRefreshTokenRepository extends RefreshTokenRepository {
     return true;
   }
 
+  async deleteRotatedBefore(date: Date): Promise<number> {
+    let deleted = 0;
+    for (const [key, token] of this.tokens) {
+      if (token.rotatedAt && token.rotatedAt.getTime() < date.getTime()) {
+        this.tokens.delete(key);
+        deleted += 1;
+      }
+    }
+    return deleted;
+  }
+
   async deleteFamily(familyId: string): Promise<number> {
     let deleted = 0;
     for (const [key, token] of this.tokens) {
@@ -390,6 +402,16 @@ export class FakeConfigService {
       throw new TypeError(`Configuration key "${key}" does not exist`);
     }
     return value;
+  }
+}
+
+export class FakeFeatureFlags extends FeatureFlags {
+  readonly values = new Map<string, boolean>();
+  readonly asked: string[] = [];
+
+  async isEnabled(key: string, codeDefault: boolean): Promise<boolean> {
+    this.asked.push(key);
+    return this.values.get(key) ?? codeDefault;
   }
 }
 

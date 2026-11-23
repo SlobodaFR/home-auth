@@ -278,6 +278,25 @@ describe('TypeOrmRefreshTokenRepository', () => {
     await moduleRef.close();
   });
 
+  it('deletes the tokens rotated before a date, keeps the others', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmRefreshTokenRepository);
+    await repository.save(member('old', 'family-1'));
+    await repository.save(member('recent', 'family-1'));
+    await repository.save(member('current', 'family-1'));
+    await repository.markRotated('old', new Date('2026-01-01T00:00:00Z'));
+    await repository.markRotated('recent', new Date('2026-01-03T00:00:00Z'));
+
+    expect(
+      await repository.deleteRotatedBefore(new Date('2026-01-02T00:00:00Z')),
+    ).toBe(1);
+
+    expect(await repository.findByTokenHash('hash-old')).toBeNull();
+    expect(await repository.findByTokenHash('hash-recent')).not.toBeNull();
+    expect(await repository.findByTokenHash('hash-current')).not.toBeNull();
+    await moduleRef.close();
+  });
+
   it('deletes a whole family and only it', async () => {
     const moduleRef = await createTestingModule();
     const repository = moduleRef.get(TypeOrmRefreshTokenRepository);

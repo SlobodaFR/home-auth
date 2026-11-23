@@ -16,6 +16,8 @@ export abstract class RefreshTokenRepository {
   /** Deletes every token of the family; returns how many were deleted. */
   abstract deleteFamily(familyId: string): Promise<number>;
   abstract deleteAllForUser(userId: string): Promise<void>;
+  /** Deletes the tokens rotated before `date`; returns how many were deleted. */
+  abstract deleteRotatedBefore(date: Date): Promise<number>;
   /** Deletes the tokens whose expiry is before `date`; returns how many were deleted. */
   abstract deleteExpiredBefore(date: Date): Promise<number>;
 }

@@ -7,6 +7,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Must stay >= LINK_BUDGET_WINDOW_MS: the per-email budget counts these rows. */
 export const MAGIC_LINK_RETENTION_MS = 7 * DAY_MS;
 export const AUTHORIZATION_CODE_RETENTION_MS = DAY_MS;
+/** Rotated refresh tokens are kept this long to recognise a reuse (PC1), then deleted. */
+export const ROTATED_REFRESH_TOKEN_RETENTION_MS = DAY_MS;
 
 export interface PurgeResult {
   magicLinks: number;
@@ -35,7 +37,11 @@ export class PurgeExpiredTokensUseCase {
           before(AUTHORIZATION_CODE_RETENTION_MS),
         ),
       // Expired refresh tokens are useless: no extra retention.
-      refreshTokens: await this.refreshTokenRepository.deleteExpiredBefore(now),
+      refreshTokens:
+        (await this.refreshTokenRepository.deleteExpiredBefore(now)) +
+        (await this.refreshTokenRepository.deleteRotatedBefore(
+          before(ROTATED_REFRESH_TOKEN_RETENTION_MS),
+        )),
     };
   }
 }
