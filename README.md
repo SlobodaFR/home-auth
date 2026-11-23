@@ -41,18 +41,78 @@ npm run build         # build frontend puis backend (copie le frontend dans back
 
 Voir [`backend/.env.example`](backend/.env.example) pour la liste complète. Points clés :
 
-| Variable                                 | Rôle                                                                                                                                                                                               |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ADMIN_EMAIL`                            | Email de l'administrateur initial (bootstrap si `users` est vide)                                                                                                                                  |
-| `AUTH_BASE_URL`                          | URL publique du service (liens magiques, JWKS). Une origine sans chemin : elle donne le claim `iss` des access tokens                                                                              |
-| `FRONTEND_URL`                           | URL du SPA (redirections `/login`, `/error`). CORS n'est ouvert qu'à cette origine, et seulement si elle diffère de `AUTH_BASE_URL`. Obligatoire en production, en `https`, comme `AUTH_BASE_URL`  |
-| `RESEND_API_KEY`, `EMAIL_FROM`           | Envoi des liens magiques par email                                                                                                                                                                 |
-| `PSEUDONYM_SECRET`                       | Obligatoire en production (≥ 32 octets, `openssl rand -hex 32`) : pseudonymes des emails dans les logs et des utilisateurs dans la télémétrie. Le changer re-clé tous les pseudonymes              |
-| `POSTHOG_API_KEY`, `POSTHOG_HOST`        | Télémétrie anonyme vers PostHog (cloud EU par défaut). Sans clé, désactivée. Dans le projet PostHog, activer **Discard client IP data** : c'est ce réglage qui garantit qu'aucune IP n'est stockée |
-| `FEATURES_OFREP_URL`, `FEATURES_API_KEY` | Feature flags home-features (voir [Feature flags](#feature-flags-home-features)). Absentes : flags désactivés, défaut du code                                                                      |
-| `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`      | Paire RSA pour signer les JWT (générée et persistée si absente)                                                                                                                                    |
-| `DATABASE_PATH`                          | Chemin du fichier SQLite                                                                                                                                                                           |
-| `MINIO_*`, `AVATARS_PREFIX`              | Réplication Litestream + stockage des avatars sur MinIO                                                                                                                                            |
+| Variable                                    | Rôle                                                                                                                                                                                               |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ADMIN_EMAIL`                               | Email de l'administrateur initial (bootstrap si `users` est vide)                                                                                                                                  |
+| `AUTH_BASE_URL`                             | URL publique du service (liens magiques, JWKS). Une origine sans chemin : elle donne le claim `iss` des access tokens                                                                              |
+| `FRONTEND_URL`                              | URL du SPA (redirections `/login`, `/error`). CORS n'est ouvert qu'à cette origine, et seulement si elle diffère de `AUTH_BASE_URL`. Obligatoire en production, en `https`, comme `AUTH_BASE_URL`  |
+| `RESEND_API_KEY`, `EMAIL_FROM`              | Envoi des liens magiques par email                                                                                                                                                                 |
+| `PSEUDONYM_SECRET`                          | Obligatoire en production (≥ 32 octets, `openssl rand -hex 32`) : pseudonymes des emails dans les logs et des utilisateurs dans la télémétrie. Le changer re-clé tous les pseudonymes              |
+| `POSTHOG_API_KEY`, `POSTHOG_HOST`           | Télémétrie anonyme vers PostHog (cloud EU par défaut). Sans clé, désactivée. Dans le projet PostHog, activer **Discard client IP data** : c'est ce réglage qui garantit qu'aucune IP n'est stockée |
+| `FEATURES_OFREP_URL`, `FEATURES_API_KEY`    | Feature flags home-features (voir [Feature flags](#feature-flags-home-features)). Absentes : flags désactivés, défaut du code                                                                      |
+| `JWT_PRIVATE_KEY_B64`, `JWT_PUBLIC_KEY_B64` | Paire RSA (PEM encodé en base64, une ligne) pour signer les JWT. Absentes : paire du volume, générée et persistée si besoin. Voir [Clés de signature JWT](#clés-de-signature-jwt)                  |
+| `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`         | Idem en PEM brut ou avec des `\n` littéraux (ne pas combiner avec les `*_B64`)                                                                                                                     |
+| `DATABASE_PATH`                             | Chemin du fichier SQLite                                                                                                                                                                           |
+| `MINIO_*`, `AVATARS_PREFIX`                 | Réplication Litestream + stockage des avatars sur MinIO                                                                                                                                            |
+
+## Clés de signature JWT
+
+La paire RSA (RS256) qui signe les access tokens et le cookie de session SSO, et dont la clé publique
+sort sur `/.well-known/jwks.json`, a deux sources possibles :
+
+- **Environnement** : `JWT_PRIVATE_KEY_B64` + `JWT_PUBLIC_KEY_B64` (PEM encodé en base64, une seule
+  ligne, car un `.env` docker compose n'accepte pas de retour à la ligne), ou `JWT_PRIVATE_KEY` +
+  `JWT_PUBLIC_KEY` (PEM brut ou avec `\n` littéraux). Les deux clés ensemble ou aucune.
+- **Volume** : `jwt-private.pem` / `jwt-public.pem` à côté de la base SQLite, générés une fois si
+  absents.
+
+En production, le déploiement (`deploy-vps.yml`) charge `AUTH_JWT_PRIVATE_KEY` et `AUTH_JWT_PUBLIC_KEY`
+depuis 1Password (`op://TECH/thomassloboda_home_secrets/…`, PEM tels qu'ils sont dans le volume), les
+encode en base64 et les écrit dans le `.env` distant. Les valeurs sont masquées dans les logs ; seule
+l'empreinte de la clé publique est affichée.
+
+### Démarrage (fail closed)
+
+| Environnement | Volume               | Résultat                                                                                     |
+| ------------- | -------------------- | -------------------------------------------------------------------------------------------- |
+| absent        | fichiers             | clés du volume (comportement historique), après contrôle que c'est bien une paire            |
+| absent        | rien                 | paire générée et écrite dans le volume (comportement historique)                             |
+| présent       | rien                 | clés de l'environnement, **rien n'est écrit** dans le volume                                 |
+| présent       | fichiers             | empreintes identiques : démarre sur les clés du volume. **Différentes : refuse de démarrer** |
+| présent       | un seul des fichiers | refuse de démarrer                                                                           |
+
+Dans tous les cas la clé privée et la clé publique doivent former une paire (test signature +
+vérification) et être des clés RSA, sinon le service refuse de démarrer. L'empreinte est le SHA-256 du
+DER SPKI de la clé publique ; les erreurs ne citent que des empreintes, jamais de matériel de clé. Les
+fichiers du volume ne sont jamais modifiés ni supprimés par ce chargement.
+
+Au démarrage, le log indique la source, le `kid` (celui du JWKS : `sha256` du PEM public, 16 premiers
+caractères) et l'empreinte :
+
+```txt
+JWT signing key ready: source=env+files kid=0123456789abcdef fingerprint=sha256:…
+```
+
+Avant de fusionner un changement qui touche aux clés, vérifier que `kid` et `fingerprint` sont
+identiques avant et après le déploiement.
+
+### Runbook : rotation volontaire (non implémentée)
+
+Une rotation invalide toutes les sessions et tous les tokens émis : à ne faire que volontairement. Le
+service ne sait pas servir deux clés à la fois (le JWKS n'en expose qu'une), donc pas de rotation
+sans coupure. Procédure prévue :
+
+1. Générer une nouvelle paire hors du VPS : `openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out new-private.pem`
+   puis `openssl pkey -in new-private.pem -pubout -out new-public.pem`.
+2. Mettre le contenu des deux PEM dans `AUTH_JWT_PRIVATE_KEY` / `AUTH_JWT_PUBLIC_KEY` (1Password).
+   Garder l'ancienne paire dans un champ d'archive.
+3. Sauvegarder le volume (le déploiement le fait : `pre-deploy-backup.sh`), puis sur le VPS déplacer
+   (jamais supprimer) `jwt-private.pem` et `jwt-public.pem` du volume `auth-data` vers un dossier de
+   sauvegarde : sans ça, la nouvelle paire ne correspond plus au volume et le service refuse de
+   démarrer, c'est voulu.
+4. Déployer. Vérifier dans le log de démarrage `source=env` et le nouvel `fingerprint`.
+5. Prévenir les clients : ils relisent le JWKS, les utilisateurs se reconnectent.
+6. Retour arrière : remettre l'ancienne paire dans 1Password et les anciens fichiers dans le volume.
 
 ## Supervision
 
