@@ -71,6 +71,19 @@ depuis 1Password (`op://TECH/thomassloboda_home_secrets/…`, PEM tels qu'ils so
 encode en base64 et les écrit dans le `.env` distant. Les valeurs sont masquées dans les logs ; seule
 l'empreinte de la clé publique est affichée.
 
+**Contrôle avant déploiement** (`deploy/scripts/check-live-jwks.mjs`, sur le runner, avant tout accès
+au VPS) : le job récupère `$AUTH_BASE_URL/.well-known/jwks.json`, reconstruit le DER SPKI de la clé
+live à partir de `n`/`e`, et compare son SHA-256 à celui de la clé publique 1Password. Différent, ou
+JWKS injoignable : le job échoue (message avec les deux empreintes uniquement), car une paire valide
+mais fausse ferait sinon refuser le démarrage du conteneur. Premier déploiement ou rotation volontaire :
+définir la variable de dépôt `JWT_KEY_ROTATION=1` (Settings > Variables > Actions), puis la retirer
+après le déploiement.
+
+**Où vit la clé privée** : en plus de 1Password et du volume, elle est dans le `.env` distant
+(`/opt/auth-service/deploy/.env`, créé en `0600` via `umask 077`, remplacé atomiquement) et dans
+l'environnement du conteneur, donc visible par quiconque a accès au démon Docker (`docker inspect`,
+`/proc/<pid>/environ`). Même périmètre de confiance que `PSEUDONYM_SECRET` et les clés MinIO déjà là.
+
 ### Démarrage (fail closed)
 
 | Environnement | Volume               | Résultat                                                                                     |
@@ -93,6 +106,19 @@ caractères) et l'empreinte :
 JWT signing key ready: source=env+files kid=0123456789abcdef fingerprint=sha256:…
 ```
 
+### Démarrage refusé : reprise
+
+Le conteneur redémarre en boucle avec `JWT key mismatch, refusing to start` (ou une erreur de PEM) :
+`docker compose logs auth-service` sur le VPS donne les empreintes en cause.
+
+1. Cas normal : corriger `AUTH_JWT_PRIVATE_KEY` / `AUTH_JWT_PUBLIC_KEY` dans 1Password (l'empreinte
+   attendue est celle de l'ancien `kid`/`fingerprint`), puis relancer le workflow de déploiement.
+2. Urgence, sans attendre le CI : sur le VPS, supprimer les deux lignes `JWT_PRIVATE_KEY_B64=` et
+   `JWT_PUBLIC_KEY_B64=` de `/opt/auth-service/deploy/.env`, puis
+   `cd /opt/auth-service/deploy && docker compose up -d`. Le service retombe sur les fichiers du
+   volume (clé historique, sessions préservées). Le prochain déploiement réécrit ces lignes : corriger
+   1Password avant.
+
 Avant de fusionner un changement qui touche aux clés, vérifier que `kid` et `fingerprint` sont
 identiques avant et après le déploiement.
 
@@ -110,7 +136,9 @@ sans coupure. Procédure prévue :
    (jamais supprimer) `jwt-private.pem` et `jwt-public.pem` du volume `auth-data` vers un dossier de
    sauvegarde : sans ça, la nouvelle paire ne correspond plus au volume et le service refuse de
    démarrer, c'est voulu.
-4. Déployer. Vérifier dans le log de démarrage `source=env` et le nouvel `fingerprint`.
+4. Définir la variable de dépôt `JWT_KEY_ROTATION=1` (sinon le contrôle pré-déploiement refuse la
+   nouvelle clé), déployer, puis retirer la variable. Vérifier dans le log de démarrage `source=env` et
+   le nouvel `fingerprint`.
 5. Prévenir les clients : ils relisent le JWKS, les utilisateurs se reconnectent.
 6. Retour arrière : remettre l'ancienne paire dans 1Password et les anciens fichiers dans le volume.
 

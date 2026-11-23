@@ -19,6 +19,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
       - name: Resolve image tag
         id: tag
         run: |
@@ -109,6 +113,17 @@ jobs:
             echo "JWT_PUBLIC_KEY_B64=$pub_b64"
           } >> "$GITHUB_ENV"
 
+      - name: Check the 1Password key is the live key
+        # A valid but wrong pair would pass every check above and then make the
+        # new container refuse to start. Compare, on the runner and before
+        # anything touches the VPS, the 1Password public key with the one the
+        # live JWKS publishes (SHA-256 of the SPKI DER, fingerprints only in the
+        # output). Unreachable JWKS fails too. First deploy or deliberate
+        # rotation: set the repository variable JWT_KEY_ROTATION=1 (README).
+        run: node deploy/scripts/check-live-jwks.mjs
+        env:
+          JWT_KEY_ROTATION: ${{ vars.JWT_KEY_ROTATION }}
+
       - name: Write remote .env
         uses: appleboy/ssh-action@v1
         with:
@@ -117,8 +132,11 @@ jobs:
           key: ${{ env.VPS_SSH_KEY }}
           envs: ADMIN_EMAIL,AUTH_BASE_URL,FRONTEND_URL,RESEND_API_KEY,EMAIL_FROM,PSEUDONYM_SECRET,POSTHOG_API_KEY,FEATURES_OFREP_URL,FEATURES_API_KEY,MINIO_ENDPOINT,MINIO_BUCKET,MINIO_REPLICA_PATH,AVATARS_PREFIX,MINIO_REGION,MINIO_ACCESS_KEY_ID,MINIO_SECRET_ACCESS_KEY,JWT_PRIVATE_KEY_B64,JWT_PUBLIC_KEY_B64
           script: |
+            # Private key inside: created 0600 from the start (no readable
+            # window, even if a looser file existed) and swapped in atomically.
+            umask 077
             mkdir -p /opt/auth-service/deploy
-            cat > /opt/auth-service/deploy/.env <<EOF
+            cat > /opt/auth-service/deploy/.env.new <<EOF
             NODE_ENV=production
             PORT=3000
             TRUST_PROXY_HOPS=1
@@ -141,7 +159,7 @@ jobs:
             JWT_PRIVATE_KEY_B64=$JWT_PRIVATE_KEY_B64
             JWT_PUBLIC_KEY_B64=$JWT_PUBLIC_KEY_B64
             EOF
-            chmod 600 /opt/auth-service/deploy/.env
+            mv -f /opt/auth-service/deploy/.env.new /opt/auth-service/deploy/.env
 
       - name: Sync deploy files
         uses: appleboy/scp-action@v0.1.7
