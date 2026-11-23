@@ -51,6 +51,8 @@ jobs:
           MINIO_ACCESS_KEY_ID: op://TECH/thomassloboda_home_secrets/MINIO_ACCESS_KEY_ID
           MINIO_SECRET_ACCESS_KEY: op://TECH/thomassloboda_home_secrets/MINIO_SECRET_ACCESS_KEY
           GHCR_PAT: op://TECH/thomassloboda_home_secrets/GITHUB_PAT_FULL_ACCESS
+          JWT_PRIVATE_KEY_PEM: op://TECH/thomassloboda_home_secrets/AUTH_JWT_PRIVATE_KEY
+          JWT_PUBLIC_KEY_PEM: op://TECH/thomassloboda_home_secrets/AUTH_JWT_PUBLIC_KEY
 
       - name: Normalize VPS_SSH_KEY
         # The 1Password field stores only the base64 body (no BEGIN/END
@@ -78,13 +80,42 @@ jobs:
           echo "::add-mask::$(cat /tmp/key_body)"
           rm -f /tmp/key_body /tmp/key
 
+      - name: Encode JWT signing keys
+        # The PEM is multi-line and a docker compose .env file takes no raw
+        # newline: ship it as one base64 line, decoded by the app. Validated
+        # here so a broken 1Password value fails before anything is deployed;
+        # only the public key fingerprint (SHA-256 of the SPKI DER, the one the
+        # app logs at startup) is printed.
+        run: |
+          set -euo pipefail
+          pem() { printf '%s\n' "${1//\\n/$'\n'}"; }
+          priv="$(pem "$JWT_PRIVATE_KEY_PEM")"
+          pub="$(pem "$JWT_PUBLIC_KEY_PEM")"
+          priv_b64="$(printf '%s\n' "$priv" | base64 | tr -d '\n')"
+          pub_b64="$(printf '%s\n' "$pub" | base64 | tr -d '\n')"
+          echo "::add-mask::$priv_b64"
+          echo "::add-mask::$pub_b64"
+          printf '%s\n' "$priv" | openssl pkey -noout >/dev/null 2>&1 \
+            || { echo "::error::AUTH_JWT_PRIVATE_KEY is not a valid PEM private key"; exit 1; }
+          printf '%s\n' "$pub" | openssl pkey -pubin -noout >/dev/null 2>&1 \
+            || { echo "::error::AUTH_JWT_PUBLIC_KEY is not a valid PEM public key"; exit 1; }
+          priv_fp="$(printf '%s\n' "$priv" | openssl pkey -pubout -outform DER | sha256sum | cut -d' ' -f1)"
+          pub_fp="$(printf '%s\n' "$pub" | openssl pkey -pubin -outform DER | sha256sum | cut -d' ' -f1)"
+          [ "$priv_fp" = "$pub_fp" ] \
+            || { echo "::error::AUTH_JWT_PRIVATE_KEY and AUTH_JWT_PUBLIC_KEY do not form a pair (public key sha256:$pub_fp, private key belongs to sha256:$priv_fp)"; exit 1; }
+          echo "JWT public key fingerprint from 1Password: sha256:$pub_fp"
+          {
+            echo "JWT_PRIVATE_KEY_B64=$priv_b64"
+            echo "JWT_PUBLIC_KEY_B64=$pub_b64"
+          } >> "$GITHUB_ENV"
+
       - name: Write remote .env
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ env.VPS_SSH_KEY }}
-          envs: ADMIN_EMAIL,AUTH_BASE_URL,FRONTEND_URL,RESEND_API_KEY,EMAIL_FROM,PSEUDONYM_SECRET,POSTHOG_API_KEY,FEATURES_OFREP_URL,FEATURES_API_KEY,MINIO_ENDPOINT,MINIO_BUCKET,MINIO_REPLICA_PATH,AVATARS_PREFIX,MINIO_REGION,MINIO_ACCESS_KEY_ID,MINIO_SECRET_ACCESS_KEY
+          envs: ADMIN_EMAIL,AUTH_BASE_URL,FRONTEND_URL,RESEND_API_KEY,EMAIL_FROM,PSEUDONYM_SECRET,POSTHOG_API_KEY,FEATURES_OFREP_URL,FEATURES_API_KEY,MINIO_ENDPOINT,MINIO_BUCKET,MINIO_REPLICA_PATH,AVATARS_PREFIX,MINIO_REGION,MINIO_ACCESS_KEY_ID,MINIO_SECRET_ACCESS_KEY,JWT_PRIVATE_KEY_B64,JWT_PUBLIC_KEY_B64
           script: |
             mkdir -p /opt/auth-service/deploy
             cat > /opt/auth-service/deploy/.env <<EOF
@@ -107,7 +138,10 @@ jobs:
             MINIO_REGION=$MINIO_REGION
             MINIO_ACCESS_KEY_ID=$MINIO_ACCESS_KEY_ID
             MINIO_SECRET_ACCESS_KEY=$MINIO_SECRET_ACCESS_KEY
+            JWT_PRIVATE_KEY_B64=$JWT_PRIVATE_KEY_B64
+            JWT_PUBLIC_KEY_B64=$JWT_PUBLIC_KEY_B64
             EOF
+            chmod 600 /opt/auth-service/deploy/.env
 
       - name: Sync deploy files
         uses: appleboy/scp-action@v0.1.7
