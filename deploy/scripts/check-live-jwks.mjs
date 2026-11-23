@@ -103,10 +103,17 @@ async function main() {
     console.error('AUTH_BASE_URL and JWT_PUBLIC_KEY_B64 are required');
     process.exit(1);
   }
+  const rotation = isRotationEnabled(JWT_KEY_ROTATION);
+  if (rotation) {
+    // Visible on every run, match or not: a forgotten variable is a disabled guard.
+    console.log(
+      '::warning::JWT_KEY_ROTATION=1 is set: the live key check is disabled. Remove the repository variable once this deliberate rotation or first deploy is done.',
+    );
+  }
   const result = await checkLiveJwks({
     jwksUrl: `${AUTH_BASE_URL.replace(/\/+$/, '')}/.well-known/jwks.json`,
     expectedPem: Buffer.from(JWT_PUBLIC_KEY_B64, 'base64').toString('utf8'),
-    rotation: isRotationEnabled(JWT_KEY_ROTATION),
+    rotation,
   });
   if (result.ok) {
     console.log(result.message);

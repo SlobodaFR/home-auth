@@ -147,8 +147,8 @@ test('CLI: exit codes against a real HTTP server', async () => {
             ...extra,
           },
         },
-        (error, _stdout, stderr) =>
-          resolve({ status: error ? error.code : 0, stderr }),
+        (error, stdout, stderr) =>
+          resolve({ status: error ? error.code : 0, stdout, stderr }),
       );
     });
   try {
@@ -157,7 +157,9 @@ test('CLI: exit codes against a real HTTP server', async () => {
     const mismatch = await run({});
     assert.equal(mismatch.status, 1);
     assert.ok(mismatch.stderr.includes(fingerprintFromPem(keyB.publicKey)));
-    assert.equal((await run({ JWT_KEY_ROTATION: '1' })).status, 0);
+    const rotation = await run({ JWT_KEY_ROTATION: '1' });
+    assert.equal(rotation.status, 0);
+    assert.ok(rotation.stdout.includes('::warning::'));
   } finally {
     server.close();
   }

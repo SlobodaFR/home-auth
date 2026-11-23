@@ -113,6 +113,11 @@ Le conteneur redémarre en boucle avec `JWT key mismatch, refusing to start` (ou
 
 1. Cas normal : corriger `AUTH_JWT_PRIVATE_KEY` / `AUTH_JWT_PUBLIC_KEY` dans 1Password (l'empreinte
    attendue est celle de l'ancien `kid`/`fingerprint`), puis relancer le workflow de déploiement.
+   Si le conteneur boucle, Caddy répond 502 sur le JWKS : le contrôle pré-déploiement échouera
+   (« Cannot read the live JWKS »). Après avoir vérifié à la main que l'empreinte 1Password est bien
+   celle de l'ancienne clé, relancer avec la variable `JWT_KEY_ROTATION=1` (qui désactive ce contrôle ;
+   la vérification d'empreinte du démarrage reste le garde-fou), puis la retirer. Sinon, passer par
+   le point 2.
 2. Urgence, sans attendre le CI : sur le VPS, supprimer les deux lignes `JWT_PRIVATE_KEY_B64=` et
    `JWT_PUBLIC_KEY_B64=` de `/opt/auth-service/deploy/.env`, puis
    `cd /opt/auth-service/deploy && docker compose up -d`. Le service retombe sur les fichiers du
