@@ -165,9 +165,8 @@ await jwtVerify(token, jwks, {
 });
 ```
 
-- **`iss`** : émis depuis cette version. home-auth (`/userinfo`, `/me`) rejette un `iss` différent ;
-  un jeton sans `iss` (émis avant) reste accepté jusqu'à ce que l'`iss` devienne obligatoire
-  (au moins 15 min après le déploiement de l'émission).
+- **`iss`** est obligatoire : home-auth (`/userinfo`, `/me`) rejette un jeton sans `iss` ou avec un
+  autre `iss`.
 - **`isAdmin` est un instantané** valable au plus 15 min : un retrait des droits admin n'est vu
   qu'au renouvellement du jeton. Pour une action sensible, l'application revérifie via `GET /userinfo`.
 

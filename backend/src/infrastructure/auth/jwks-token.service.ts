@@ -48,14 +48,12 @@ export class JwksTokenService extends TokenService {
     audience?: string,
   ): Promise<AccessTokenClaims | null> {
     try {
+      // iss required (PC3, B3): a token without it, or from another issuer, is refused.
       const { payload } = await jwtVerify(token, this.keys.getPublicKey(), {
         algorithms: ['RS256'],
+        issuer: this.issuer,
         ...(audience ? { audience } : {}),
       });
-      // Absent iss is tolerated while tokens issued before B1 are still valid (≤ 15 min); B3 requires it.
-      if (payload.iss !== undefined && payload.iss !== this.issuer) {
-        return null;
-      }
       // Exactly one audience (PC4): a token naming several clients is never accepted. The guard
       // passes no `audience` (any existing client is valid), so this is the only aud check there.
       const aud = Array.isArray(payload.aud)
