@@ -72,4 +72,41 @@ describe('RuntimeHealthMonitor', () => {
       monitor.stop();
     }).not.toThrow();
   });
+
+  it('reports runtime_health with exactly the six shared properties, as numbers', () => {
+    monitor.sample();
+
+    const { event } = telemetry.captured[0] as {
+      event: { name: string; properties: Record<string, unknown> };
+    };
+    expect(event.name).toBe('runtime_health');
+    expect(Object.keys(event.properties).sort()).toEqual([
+      'elu',
+      'heap_used_mb',
+      'lag_max_ms',
+      'lag_p50_ms',
+      'lag_p99_ms',
+      'rss_mb',
+    ]);
+    expect(
+      Object.values(event.properties).every((v) => typeof v === 'number'),
+    ).toBe(true);
+  });
+
+  it('samples every 60 s from the start, once per period', () => {
+    monitor.stop();
+    vi.useFakeTimers();
+    try {
+      monitor.start();
+      vi.advanceTimersByTime(59_999);
+      expect(telemetry.captured).toHaveLength(0);
+      vi.advanceTimersByTime(1);
+      expect(telemetry.captured).toHaveLength(1);
+      vi.advanceTimersByTime(120_000);
+      expect(telemetry.captured).toHaveLength(3);
+    } finally {
+      monitor.stop();
+      vi.useRealTimers();
+    }
+  });
 });

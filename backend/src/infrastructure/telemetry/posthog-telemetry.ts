@@ -10,6 +10,8 @@ import {
 } from '../../domain/shared/telemetry';
 
 const DEFAULT_HOST = 'https://eu.i.posthog.com';
+// Under Docker's 10 s stop timeout: an unreachable PostHog must not delay (or get killed during) a restart.
+const SHUTDOWN_TIMEOUT_MS = 5_000;
 
 /** The part of the posthog-node client this adapter uses (injectable for tests). */
 export interface PostHogClient {
@@ -19,7 +21,7 @@ export interface PostHogClient {
     properties: Record<string, unknown>;
     disableGeoip: boolean;
   }): void;
-  shutdown(): Promise<void>;
+  shutdown(shutdownTimeoutMs?: number): Promise<void>;
 }
 
 type PostHogClientFactory = (
@@ -98,6 +100,6 @@ export class PostHogTelemetry
   }
 
   async onApplicationShutdown(): Promise<void> {
-    await this.client?.shutdown();
+    await this.client?.shutdown(SHUTDOWN_TIMEOUT_MS);
   }
 }

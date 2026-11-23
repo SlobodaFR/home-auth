@@ -1,7 +1,14 @@
-import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
+import {
+  Controller,
+  ExecutionContext,
+  Get,
+  NotFoundException,
+  Param,
+} from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
+import { lastValueFrom, of } from 'rxjs';
 import { Throttle, ThrottlerModule } from '@nestjs/throttler';
 import request from 'supertest';
 import { FakeTelemetry } from '../../application/test/in-memory-repositories';
@@ -42,6 +49,14 @@ class ItemsController {
   }
 }
 
+@Controller()
+class HealthController {
+  @Get('healthz')
+  healthz(): string {
+    return 'ok';
+  }
+}
+
 describe('HTTP telemetry', () => {
   let app: NestExpressApplication;
   let telemetry: FakeTelemetry;
@@ -52,7 +67,7 @@ describe('HTTP telemetry', () => {
       imports: [
         ThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 100 }] }),
       ],
-      controllers: [ItemsController, JwksController],
+      controllers: [ItemsController, JwksController, HealthController],
       providers: [
         { provide: Telemetry, useValue: telemetry },
         { provide: APP_INTERCEPTOR, useClass: TelemetryInterceptor },
@@ -130,6 +145,47 @@ describe('HTTP telemetry', () => {
     expect(telemetry.captured.map(({ event }) => event)).toContainEqual({
       name: 'rate_limited',
       properties: { route: '/items/limited' },
+    });
+  });
+
+  it('does not report /healthz (polled by Docker)', async () => {
+    await request(app.getHttpServer()).get('/healthz').expect(200);
+
+    expect(telemetry.captured).toEqual([]);
+  });
+
+  it('reports nothing for a request that matches no route', async () => {
+    await request(app.getHttpServer())
+      .get('/nope/alice@example.com')
+      .expect(404);
+
+    expect(telemetry.names()).not.toContain('http_request');
+  });
+
+  it('ignores non-HTTP contexts: a WebSocket handler sharing the global interceptor emits nothing', async () => {
+    const interceptor = new TelemetryInterceptor(telemetry);
+    const next = { handle: () => of('pong') };
+    const wsContext = {
+      getType: () => 'ws',
+      switchToHttp: () => {
+        throw new Error('must not read an HTTP request on a ws context');
+      },
+    } as unknown as ExecutionContext;
+
+    await lastValueFrom(interceptor.intercept(wsContext, next));
+
+    expect(telemetry.captured).toEqual([]);
+  });
+
+  it('never reports an email carried by a query string or a path parameter', async () => {
+    await request(app.getHttpServer())
+      .get('/items/alice@example.com?email=bob@example.com')
+      .expect(200);
+
+    expect(telemetry.names()).toEqual(['http_request']);
+    expect(JSON.stringify(telemetry.captured)).not.toMatch(/alice|bob|@/);
+    expect(telemetry.captured[0].event).toMatchObject({
+      properties: { route: '/items/:id' },
     });
   });
 });
