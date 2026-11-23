@@ -244,7 +244,7 @@ const challenge = crypto
 ### SSO maison
 
 - `POST /auth/request-link` — envoie un lien magique par email
-- `POST /auth/callback` — échange le token du lien magique contre une session (cookie `auth_session`)
+- `POST /auth/callback` — échange le token du lien magique contre une session (cookie `__Host-auth_session` en production, `auth_session` en développement : le préfixe impose `Secure`, `Path=/` et l'absence de `Domain`)
 - `POST /auth/logout` — invalide **toutes** les sessions SSO de l'utilisateur (tous ses appareils), révoque ses refresh tokens et notifie les clients (voir ci-dessous)
 
 ### Profil

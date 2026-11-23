@@ -31,9 +31,10 @@ import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { SameOriginGuard } from '../guards/same-origin.guard';
 import { SessionAuthGuard, SessionUser } from '../guards/session-auth.guard';
 import { UserInfoDto } from '../presenters/user-info.dto';
+import { SESSION_SECURITY_SCHEME } from '../session-cookie';
 
 @ApiTags('Profile')
-@ApiCookieAuth('auth_session')
+@ApiCookieAuth(SESSION_SECURITY_SCHEME)
 @Controller('profile')
 @UseGuards(SameOriginGuard, SessionAuthGuard)
 export class ProfileController {

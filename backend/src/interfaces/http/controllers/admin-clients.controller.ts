@@ -37,9 +37,10 @@ import {
   toClientSummaryDto,
 } from '../presenters/client.presenter';
 import { CreateClientResponseDto } from '../presenters/create-client-response.dto';
+import { SESSION_SECURITY_SCHEME } from '../session-cookie';
 
 @ApiTags('Admin - Clients')
-@ApiCookieAuth('auth_session')
+@ApiCookieAuth(SESSION_SECURITY_SCHEME)
 @Controller('admin/clients')
 // SameOriginGuard first: a cross-site form must be refused before any session work.
 @UseGuards(SameOriginGuard, SessionAuthGuard, AdminGuard)

@@ -37,11 +37,7 @@ export class JwtSessionService extends SessionService {
       if (!payload.sub) {
         return null;
       }
-      // Transitional (PC9 D2): a token without sv predates the claim and counts as the current
-      // version. A present but malformed sv is never valid.
-      if (payload.sv === undefined) {
-        return { userId: payload.sub, sessionVersion: null };
-      }
+      // sv is mandatory: a token issued before it existed forces one re-login (PC9 D3).
       if (
         typeof payload.sv !== 'number' ||
         !Number.isInteger(payload.sv) ||

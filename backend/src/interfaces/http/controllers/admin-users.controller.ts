@@ -23,9 +23,10 @@ import { AdminGuard } from '../guards/admin.guard';
 import { SameOriginGuard } from '../guards/same-origin.guard';
 import { SessionAuthGuard, SessionUser } from '../guards/session-auth.guard';
 import { toUserDto, UserDto } from '../presenters/user.presenter';
+import { SESSION_SECURITY_SCHEME } from '../session-cookie';
 
 @ApiTags('Admin - Users')
-@ApiCookieAuth('auth_session')
+@ApiCookieAuth(SESSION_SECURITY_SCHEME)
 @Controller('admin/users')
 // SameOriginGuard first: a cross-site form must be refused before any session work.
 @UseGuards(SameOriginGuard, SessionAuthGuard, AdminGuard)

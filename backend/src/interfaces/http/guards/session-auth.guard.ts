@@ -6,8 +6,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { ResolveSessionUseCase } from '../../../application/auth/resolve-session.use-case';
-
-export const SESSION_COOKIE_NAME = 'auth_session';
+import { sessionCookieName } from '../session-cookie';
 
 export interface SessionUser {
   id: string;
@@ -29,7 +28,7 @@ export class SessionAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<SessionRequest>();
     const user = await this.resolveSession.execute(
-      request.cookies[SESSION_COOKIE_NAME],
+      request.cookies[sessionCookieName()],
     );
     if (!user) {
       throw new UnauthorizedException('Authentication required');

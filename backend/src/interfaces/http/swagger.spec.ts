@@ -1,10 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiCookieAuth } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { SESSION_SECURITY_SCHEME } from './session-cookie';
 import { setupSwagger } from './swagger';
 
 @Controller('ping')
+@ApiCookieAuth(SESSION_SECURITY_SCHEME)
 class PingController {
   @Get()
   ping(): string {
@@ -36,6 +39,22 @@ describe('setupSwagger', () => {
 
     await request(app.getHttpServer()).get('/docs').expect(200);
     await request(app.getHttpServer()).get('/docs-json').expect(200);
+    await app.close();
+  });
+
+  it('documents the session cookie under the name the guard reads', async () => {
+    const app = await createApp('development');
+
+    const { body } = await request(app.getHttpServer()).get('/docs-json');
+
+    expect(body.components.securitySchemes[SESSION_SECURITY_SCHEME]).toEqual({
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'auth_session',
+    });
+    expect(body.paths['/ping'].get.security).toEqual([
+      { [SESSION_SECURITY_SCHEME]: [] },
+    ]);
     await app.close();
   });
 });

@@ -73,12 +73,10 @@ describe('ResolveSessionUseCase', () => {
     ).toBeNull();
   });
 
-  // Transitional (PC9 D2): cookies issued before the sv claim existed are accepted as the
-  // current version, until D3 makes the claim mandatory.
-  it('accepts a legacy token without sv as the current version', async () => {
-    const { useCase, userRepository } = await setup();
-    await userRepository.revokeSessions('u1');
+  // PC9 D3: a cookie issued before the sv claim is refused, whatever the user's version.
+  it('returns null for a legacy token without sv', async () => {
+    const { useCase } = await setup();
 
-    expect((await useCase.execute('session:u1'))?.id).toBe('u1');
+    expect(await useCase.execute('session:u1')).toBeNull();
   });
 });

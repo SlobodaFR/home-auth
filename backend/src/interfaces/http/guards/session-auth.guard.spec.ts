@@ -1,7 +1,8 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { ResolveSessionUseCase } from '../../../application/auth/resolve-session.use-case';
 import { User } from '../../../domain/user/user';
-import { SESSION_COOKIE_NAME, SessionAuthGuard } from './session-auth.guard';
+import { sessionCookieName } from '../session-cookie';
+import { SessionAuthGuard } from './session-auth.guard';
 
 const alice = User.create({
   id: 'u1',
@@ -35,7 +36,7 @@ describe('SessionAuthGuard', () => {
 
   it('attaches the resolved user to the request', async () => {
     const { guard, execute } = guardWith(alice);
-    const { ctx, request } = context({ [SESSION_COOKIE_NAME]: 'jwt' });
+    const { ctx, request } = context({ [sessionCookieName()]: 'jwt' });
 
     expect(await guard.canActivate(ctx)).toBe(true);
 
@@ -52,10 +53,26 @@ describe('SessionAuthGuard', () => {
     const { guard } = guardWith(null);
 
     await expect(
-      guard.canActivate(context({ [SESSION_COOKIE_NAME]: 'jwt' }).ctx),
+      guard.canActivate(context({ [sessionCookieName()]: 'jwt' }).ctx),
     ).rejects.toBeInstanceOf(UnauthorizedException);
     await expect(guard.canActivate(context({}).ctx)).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
+  });
+
+  it('reads __Host-auth_session in production and ignores the plain name', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const { guard, execute } = guardWith(alice);
+
+    await guard.canActivate(context({ '__Host-auth_session': 'jwt' }).ctx);
+    expect(execute).toHaveBeenCalledWith('jwt');
+
+    execute.mockClear();
+    execute.mockResolvedValue(null);
+    await expect(
+      guard.canActivate(context({ auth_session: 'jwt' }).ctx),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(execute).toHaveBeenCalledWith(undefined);
+    vi.unstubAllEnvs();
   });
 });

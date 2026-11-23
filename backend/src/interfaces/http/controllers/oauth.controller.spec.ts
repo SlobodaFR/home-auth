@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { FakeTelemetry } from '../../../application/test/in-memory-repositories';
+import { sessionCookieName } from '../session-cookie';
 import { OAuthController } from './oauth.controller';
 
 const QUERY = {
@@ -25,13 +26,16 @@ function createController(options: {
     {} as never,
     {} as never,
     {
-      execute: () => Promise.resolve(options.session ? { id: 'user-1' } : null),
+      execute: (token: string | undefined) =>
+        Promise.resolve(
+          options.session && token === 'jwt' ? { id: 'user-1' } : null,
+        ),
     } as never,
     { get: (_key: string, fallback: string) => fallback } as never,
     telemetry,
   );
   const req = {
-    cookies: { auth_session: 'jwt' },
+    cookies: { [sessionCookieName()]: 'jwt' },
     originalUrl: '/authorize?client_id=budget',
   } as unknown as Request;
   const res = {
