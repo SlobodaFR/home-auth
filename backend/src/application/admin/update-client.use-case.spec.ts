@@ -124,5 +124,77 @@ describe('UpdateClientUseCase', () => {
       });
       expect(cleared.logoutWebhookUrl).toBeNull();
     });
+
+    it('treats the masked URL shown by the API as "unchanged" (the secret query is kept)', async () => {
+      const clientRepository = new InMemoryClientRepository();
+      await seedClientWithWebhook(
+        clientRepository,
+        'https://budget.example.com/hook?secret=abc',
+      );
+      const useCase = new UpdateClientUseCase(clientRepository);
+
+      // The admin form resends what GET gave it: the masked value.
+      const updated = await useCase.execute('budget', {
+        name: 'Renamed',
+        logoutWebhookUrl: 'https://budget.example.com/hook?***',
+      });
+
+      expect(updated.name).toBe('Renamed');
+      expect(updated.logoutWebhookUrl).toBe(
+        'https://budget.example.com/hook?secret=abc',
+      );
+    });
+
+    it('a really new URL still replaces the stored one', async () => {
+      const clientRepository = new InMemoryClientRepository();
+      await seedClientWithWebhook(
+        clientRepository,
+        'https://budget.example.com/hook?secret=abc',
+      );
+      const useCase = new UpdateClientUseCase(clientRepository);
+
+      const updated = await useCase.execute('budget', {
+        logoutWebhookUrl: 'https://budget.example.com/v2?secret=def',
+      });
+
+      expect(updated.logoutWebhookUrl).toBe(
+        'https://budget.example.com/v2?secret=def',
+      );
+    });
+
+    it('typing the clean URL replaces a legacy URL that had credentials', async () => {
+      const clientRepository = new InMemoryClientRepository();
+      await seedClientWithWebhook(
+        clientRepository,
+        'http://user:pw@old.local/hook',
+      );
+      const useCase = new UpdateClientUseCase(clientRepository);
+
+      // The mask hides credentials without a marker: this is a real edit, not "unchanged".
+      await expect(
+        useCase.execute('budget', {
+          logoutWebhookUrl: 'http://old.local/hook',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      const updated = await useCase.execute('budget', {
+        logoutWebhookUrl: 'https://old.local/hook',
+      });
+      expect(updated.logoutWebhookUrl).toBe('https://old.local/hook');
+    });
+
+    it('refuses to store a value carrying the mask marker on another URL', async () => {
+      const clientRepository = new InMemoryClientRepository();
+      await seedClientWithWebhook(
+        clientRepository,
+        'https://budget.example.com/hook?secret=abc',
+      );
+      const useCase = new UpdateClientUseCase(clientRepository);
+
+      await expect(
+        useCase.execute('budget', {
+          logoutWebhookUrl: 'https://budget.example.com/other?***',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
   });
 });

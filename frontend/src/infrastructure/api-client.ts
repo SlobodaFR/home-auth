@@ -21,7 +21,9 @@ export interface AdminClient {
   id: string;
   name: string;
   redirectUris: string[];
+  /** Query string masked (`?***`); sending it back unchanged keeps the stored URL. */
   logoutWebhookUrl: string | null;
+  hasWebhookSecret: boolean;
   createdAt: string;
 }
 
@@ -138,6 +140,11 @@ export const apiClient = {
 
   updateClient(id: string, payload: UpdateClientPayload): Promise<AdminClient> {
     return sendJson(`/admin/clients/${id}`, 'PATCH', payload);
+  },
+
+  /** The secret is in this response only: show it once, never store it. */
+  regenerateWebhookSecret(id: string): Promise<{ webhookSecret: string }> {
+    return request(`/admin/clients/${id}/webhook-secret`, { method: 'POST' });
   },
 
   async deleteClient(id: string): Promise<void> {

@@ -131,6 +131,42 @@ describe('TypeOrmClientRepository', () => {
 
     await moduleRef.close();
   });
+
+  it('persists the webhook secrets and keeps them across other updates', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmClientRepository);
+    const now = new Date('2026-01-01T00:00:00Z');
+    const client = Client.create({
+      id: 'budget',
+      name: 'Foyer Budget',
+      clientSecretHash: 'hash',
+      redirectUris: ['https://budget.example.com/auth/callback'],
+      logoutWebhookUrl: null,
+      createdAt: now,
+    });
+    await repository.save(client);
+    expect((await repository.findById('budget'))?.hasWebhookSecret).toBe(false);
+
+    await repository.save(
+      client
+        .regenerateWebhookSecret('s1', now)
+        .regenerateWebhookSecret('s2', now),
+    );
+    const stored = await repository.findById('budget');
+    expect(stored?.webhookSecret).toBe('s2');
+    expect(stored?.webhookSecretPrevious).toBe('s1');
+    expect(stored?.webhookSecretPreviousExpiresAt).toEqual(
+      new Date('2026-01-02T00:00:00Z'),
+    );
+
+    // An unrelated update (the admin edits the name) must not wipe the secrets.
+    await repository.save(stored!.update({ name: 'Renamed' }));
+    expect(
+      (await repository.findById('budget'))?.activeWebhookSecrets(now),
+    ).toEqual(['s2', 's1']);
+
+    await moduleRef.close();
+  });
 });
 
 describe('TypeOrmClientAccessRepository', () => {

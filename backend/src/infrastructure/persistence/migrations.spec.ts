@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { ENTITIES } from './entities';
 import { MIGRATIONS } from './migrations';
 import { InitialSchema1794400000000 } from './migrations/1794400000000-InitialSchema';
+import { AddClientWebhookSecrets1794600000000 } from './migrations/1794600000000-AddClientWebhookSecrets';
 import { AddUserSessionVersion1794700000000 } from './migrations/1794700000000-AddUserSessionVersion';
 import { AddRefreshTokenFamilies1794800000000 } from './migrations/1794800000000-AddRefreshTokenFamilies';
 
@@ -63,7 +64,7 @@ describe('database migrations', () => {
       type: 'better-sqlite3',
       database: file,
       entities: ENTITIES,
-      migrations: [MIGRATIONS[0]],
+      migrations: [InitialSchema1794400000000],
       synchronize: false,
     });
     await old.initialize();
@@ -89,12 +90,114 @@ describe('database migrations', () => {
     await ds.runMigrations();
 
     const queryRunner = ds.createQueryRunner();
-    await new MIGRATIONS[1]().up(queryRunner);
+    await new AddUserSessionVersion1794700000000().up(queryRunner);
     await queryRunner.release();
 
     expect(await ds.query('PRAGMA table_info("users")')).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'session_version' }),
+      ]),
+    );
+    await ds.destroy();
+  });
+
+  it('add the webhook secret columns to an existing clients table, without touching its rows', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'db-')), 'prod.sqlite');
+    const before = new DataSource({
+      type: 'better-sqlite3',
+      database: file,
+      entities: ENTITIES,
+      migrations: [InitialSchema1794400000000],
+      synchronize: false,
+    });
+    await before.initialize();
+    await before.runMigrations();
+    await before.query(
+      "INSERT INTO clients (id, name, client_secret_hash, redirect_uris, logout_webhook_url) VALUES ('budget', 'Budget', 'h', '[]', 'https://b.example.com/h?secret=x')",
+    );
+    await before.destroy();
+
+    const migrated = dataSource(file);
+    await migrated.initialize();
+    await migrated.runMigrations();
+
+    expect(
+      await migrated.query(
+        'SELECT id, logout_webhook_url, webhook_secret, webhook_secret_previous, webhook_secret_previous_expires_at FROM clients',
+      ),
+    ).toEqual([
+      {
+        id: 'budget',
+        logout_webhook_url: 'https://b.example.com/h?secret=x',
+        webhook_secret: null,
+        webhook_secret_previous: null,
+        webhook_secret_previous_expires_at: null,
+      },
+    ]);
+    expect(
+      (await migrated.driver.createSchemaBuilder().log()).upQueries,
+    ).toEqual([]);
+    await migrated.destroy();
+  });
+
+  // The webhook secrets migration (1794600000000) was merged after 1794700000000..1794900000000
+  // had already run in production: TypeORM must still apply it, whatever the timestamps order.
+  it('apply the webhook secrets migration on a database already at the latest previous schema', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'db-')), 'prod.sqlite');
+    const before = new DataSource({
+      type: 'better-sqlite3',
+      database: file,
+      migrations: MIGRATIONS.filter(
+        (migration) => migration !== AddClientWebhookSecrets1794600000000,
+      ),
+    });
+    await before.initialize();
+    await before.runMigrations();
+    await before.query(
+      "INSERT INTO clients (id, name, client_secret_hash, redirect_uris, logout_webhook_url) VALUES ('budget', 'Budget', 'h', '[]', 'https://b.example.com/h?secret=x')",
+    );
+    await before.destroy();
+
+    const migrated = dataSource(file);
+    await migrated.initialize();
+    const applied = await migrated.runMigrations();
+
+    expect(applied.map((migration) => migration.name)).toEqual([
+      'AddClientWebhookSecrets1794600000000',
+    ]);
+    expect(
+      await migrated.query(
+        'SELECT id, logout_webhook_url, webhook_secret FROM clients',
+      ),
+    ).toEqual([
+      {
+        id: 'budget',
+        logout_webhook_url: 'https://b.example.com/h?secret=x',
+        webhook_secret: null,
+      },
+    ]);
+    expect(
+      (await migrated.driver.createSchemaBuilder().log()).upQueries,
+    ).toEqual([]);
+    await migrated.destroy();
+  });
+
+  it('make the webhook secrets migration a no-op when the columns already exist', async () => {
+    const ds = dataSource(':memory:');
+    await ds.initialize();
+    await ds.runMigrations();
+
+    const queryRunner = ds.createQueryRunner();
+    await new AddClientWebhookSecrets1794600000000().up(queryRunner);
+    await queryRunner.release();
+
+    expect(await ds.query('PRAGMA table_info("clients")')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'webhook_secret' }),
+        expect.objectContaining({ name: 'webhook_secret_previous' }),
+        expect.objectContaining({
+          name: 'webhook_secret_previous_expires_at',
+        }),
       ]),
     );
     await ds.destroy();
@@ -133,6 +236,7 @@ describe('database migrations', () => {
       database: file,
       migrations: [
         InitialSchema1794400000000,
+        AddClientWebhookSecrets1794600000000,
         AddUserSessionVersion1794700000000,
         AddRefreshTokenFamilies1794800000000,
       ],

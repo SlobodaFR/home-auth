@@ -432,10 +432,18 @@ export class FakeAvatarStorage extends AvatarStorage {
 }
 
 export class FakeWebhookNotifier extends WebhookNotifier {
-  readonly calls: { url: string; payload: Record<string, unknown> }[] = [];
+  readonly calls: {
+    url: string;
+    payload: Record<string, unknown>;
+    secrets: readonly string[];
+  }[] = [];
 
-  async notify(url: string, payload: Record<string, unknown>): Promise<void> {
-    this.calls.push({ url, payload });
+  async notify(
+    url: string,
+    payload: Record<string, unknown>,
+    secrets: readonly string[],
+  ): Promise<void> {
+    this.calls.push({ url, payload, secrets });
   }
 }
 
