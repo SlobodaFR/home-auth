@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, MoreThanOrEqual, Repository } from 'typeorm';
+import { IsNull, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { AuthorizationCode } from '../../../domain/auth/authorization-code';
 import { AuthorizationCodeRepository } from '../../../domain/auth/authorization-code.repository';
 import { AuthorizationCodeOrmEntity } from '../entities/authorization-code.orm-entity';
@@ -23,6 +23,7 @@ export class TypeOrmAuthorizationCodeRepository extends AuthorizationCodeReposit
       expiresAt: code.expiresAt,
       used: code.used,
       codeChallenge: code.codeChallenge,
+      reusedAt: code.reusedAt,
     });
   }
 
@@ -38,6 +39,14 @@ export class TypeOrmAuthorizationCodeRepository extends AuthorizationCodeReposit
       { used: true },
     );
     return result.affected === 1;
+  }
+
+  async markReused(codeHash: string, at: Date): Promise<void> {
+    // Conditional: the first detection date is kept.
+    await this.repository.update(
+      { codeHash, reusedAt: IsNull() },
+      { reusedAt: at },
+    );
   }
 
   async deleteExpiredBefore(date: Date): Promise<number> {

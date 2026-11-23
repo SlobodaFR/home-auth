@@ -13,6 +13,12 @@ export abstract class RefreshTokenRepository {
    * rotated it; false if it was already rotated (or does not exist).
    */
   abstract markRotated(id: string, at: Date): Promise<boolean>;
+  /**
+   * Atomically spends the single re-issue a rotated token gets in the grace window (PC1,
+   * amended): sets grace_used_at on a rotated token whose grace is unused. True for the single
+   * caller that spent it; false if already spent, not rotated, or the token does not exist.
+   */
+  abstract claimGrace(id: string, at: Date): Promise<boolean>;
   /** Deletes every token of the family; returns how many were deleted. */
   abstract deleteFamily(familyId: string): Promise<number>;
   abstract deleteAllForUser(userId: string): Promise<void>;

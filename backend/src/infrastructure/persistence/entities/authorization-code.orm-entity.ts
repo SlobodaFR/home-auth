@@ -23,4 +23,8 @@ export class AuthorizationCodeOrmEntity {
   // Nullable: rows from before PKCE support, and clients that do not use it.
   @Column({ type: 'text', name: 'code_challenge', nullable: true })
   codeChallenge!: string | null;
+
+  /** Durable reuse marker (PC2): first time the code was presented again. */
+  @Column({ type: 'datetime', name: 'reused_at', nullable: true })
+  reusedAt!: Date | null;
 }

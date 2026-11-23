@@ -9,6 +9,8 @@ export interface RefreshTokenProps {
   familyId: string;
   /** Set once the token has been exchanged for a new one; null while it is the current one. */
   rotatedAt: Date | null;
+  /** Set when the single re-issue allowed in the grace window was spent (PC1, amended). */
+  graceUsedAt: Date | null;
 }
 
 const TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -22,7 +24,10 @@ export class RefreshToken {
   private constructor(private readonly props: RefreshTokenProps) {}
 
   static issue(
-    props: Omit<RefreshTokenProps, 'expiresAt' | 'familyId' | 'rotatedAt'> & {
+    props: Omit<
+      RefreshTokenProps,
+      'expiresAt' | 'familyId' | 'rotatedAt' | 'graceUsedAt'
+    > & {
       issuedAt?: Date;
       /** Defaults to the token's own id: a new family. */
       familyId?: string;
@@ -38,6 +43,7 @@ export class RefreshToken {
       expiresAt: new Date(issuedAt.getTime() + TTL_MS),
       familyId: props.familyId ?? props.id,
       rotatedAt: null,
+      graceUsedAt: null,
     });
   }
 
@@ -75,6 +81,10 @@ export class RefreshToken {
 
   get rotatedAt(): Date | null {
     return this.props.rotatedAt;
+  }
+
+  get graceUsedAt(): Date | null {
+    return this.props.graceUsedAt;
   }
 
   isExpired(now: Date = new Date()): boolean {

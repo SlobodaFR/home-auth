@@ -10,6 +10,11 @@ export interface AuthorizationCodeProps {
   used: boolean;
   /** PKCE S256 challenge sent to /authorize, or null when the client did not use PKCE. */
   codeChallenge: string | null;
+  /**
+   * Durable reuse marker (PC2): set by the first request that saw this code presented again. The
+   * redemption winner checks it after saving its refresh token.
+   */
+  reusedAt: Date | null;
 }
 
 const TTL_MS = 60 * 1000;
@@ -24,7 +29,7 @@ export class AuthorizationCode {
   static issue(
     props: Omit<
       AuthorizationCodeProps,
-      'used' | 'expiresAt' | 'codeChallenge'
+      'used' | 'expiresAt' | 'codeChallenge' | 'reusedAt'
     > & {
       issuedAt?: Date;
       codeChallenge?: string | null;
@@ -39,6 +44,7 @@ export class AuthorizationCode {
       expiresAt: new Date(issuedAt.getTime() + TTL_MS),
       used: false,
       codeChallenge: props.codeChallenge ?? null,
+      reusedAt: null,
     });
   }
 
@@ -72,6 +78,10 @@ export class AuthorizationCode {
 
   isExpired(now: Date = new Date()): boolean {
     return now.getTime() > this.props.expiresAt.getTime();
+  }
+
+  get reusedAt(): Date | null {
+    return this.props.reusedAt;
   }
 
   get codeChallenge(): string | null {

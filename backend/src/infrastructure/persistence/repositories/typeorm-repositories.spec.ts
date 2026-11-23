@@ -205,6 +205,59 @@ describe('TypeOrmAuthorizationCodeRepository', () => {
   });
 });
 
+describe('authorization code reuse marker (PC2)', () => {
+  const issue = (codeHash: string, issuedAt = new Date()) =>
+    AuthorizationCode.issue({
+      codeHash,
+      userId: 'user-1',
+      clientId: 'budget',
+      redirectUri: 'https://budget.example.com/cb',
+      issuedAt,
+    });
+
+  it('records the first reuse date only, and ignores an unknown code', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmAuthorizationCodeRepository);
+    await repository.save(issue('code'));
+    expect((await repository.findByCodeHash('code'))?.reusedAt).toBeNull();
+    const first = new Date('2026-01-01T00:00:00Z');
+
+    await repository.markReused('code', first);
+    await repository.markReused('code', new Date('2026-01-01T00:00:05Z'));
+    await repository.markReused('unknown', first);
+
+    expect((await repository.findByCodeHash('code'))?.reusedAt).toEqual(first);
+    expect(await repository.findByCodeHash('unknown')).toBeNull();
+    await moduleRef.close();
+  });
+
+  it('keeps the marker when the code is redeemed afterwards', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmAuthorizationCodeRepository);
+    const now = new Date();
+    await repository.save(issue('code', now));
+    await repository.markReused('code', now);
+
+    expect(await repository.markRedeemed('code', now)).toBe(true);
+    expect((await repository.findByCodeHash('code'))?.reusedAt).toEqual(now);
+    await moduleRef.close();
+  });
+
+  it('purges a reused code with the other expired codes', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmAuthorizationCodeRepository);
+    const issuedAt = new Date('2026-01-01T00:00:00Z');
+    await repository.save(issue('reused', issuedAt));
+    await repository.markReused('reused', issuedAt);
+
+    expect(
+      await repository.deleteExpiredBefore(new Date('2026-01-02T00:00:00Z')),
+    ).toBe(1);
+    expect(await repository.findByCodeHash('reused')).toBeNull();
+    await moduleRef.close();
+  });
+});
+
 describe('TypeOrmRefreshTokenRepository', () => {
   it('persists, finds, and deletes refresh tokens', async () => {
     const moduleRef = await createTestingModule();
@@ -294,6 +347,47 @@ describe('TypeOrmRefreshTokenRepository', () => {
     expect(await repository.findByTokenHash('hash-old')).toBeNull();
     expect(await repository.findByTokenHash('hash-recent')).not.toBeNull();
     expect(await repository.findByTokenHash('hash-current')).not.toBeNull();
+    await moduleRef.close();
+  });
+
+  // Same single-writer argument as markRotated: one winner for the single grace re-issue.
+  it('spends the grace of a rotated token only once (atomic conditional update)', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmRefreshTokenRepository);
+    await repository.save(member('a', 'family-1'));
+    await repository.save(member('unrotated', 'family-1'));
+    await repository.markRotated('a', new Date('2026-01-01T00:00:00Z'));
+    const at = new Date('2026-01-01T00:00:10Z');
+
+    const results = await Promise.all([
+      repository.claimGrace('a', at),
+      repository.claimGrace('a', new Date()),
+      repository.claimGrace('a', new Date()),
+    ]);
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect((await repository.findByTokenHash('hash-a'))?.graceUsedAt).toEqual(
+      at,
+    );
+    expect(await repository.claimGrace('unrotated', at)).toBe(false);
+    expect(
+      (await repository.findByTokenHash('hash-unrotated'))?.graceUsedAt,
+    ).toBeNull();
+    expect(await repository.claimGrace('unknown', at)).toBe(false);
+    await moduleRef.close();
+  });
+
+  it('purges a rotated token with its spent grace after the retention', async () => {
+    const moduleRef = await createTestingModule();
+    const repository = moduleRef.get(TypeOrmRefreshTokenRepository);
+    await repository.save(member('old', 'family-1'));
+    await repository.markRotated('old', new Date('2026-01-01T00:00:00Z'));
+    await repository.claimGrace('old', new Date('2026-01-01T00:00:05Z'));
+
+    expect(
+      await repository.deleteRotatedBefore(new Date('2026-01-02T00:00:00Z')),
+    ).toBe(1);
+    expect(await repository.findByTokenHash('hash-old')).toBeNull();
     await moduleRef.close();
   });
 

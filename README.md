@@ -210,17 +210,23 @@ Ces commandes tournent en local, sur le code compilé (`tsc`), avec `DATABASE_PA
     une seule requête concurrente gagne) et remplacé par un nouveau, de la même famille (une famille
     par connexion, nommée d'après le code d'autorisation). Un jeton déjà tourné présenté à nouveau :
     - dans les **30 s** qui suivent sa rotation (course entre requêtes concurrentes, réponse perdue) :
-      nouvelle paire dans la même famille ;
-    - au-delà : 401 `Invalid refresh token` ; si le flag `auth-refresh-reuse-revocation` est actif,
-      toute la famille est supprimée (l'application doit renvoyer vers `/authorize`).
+      nouvelle paire dans la même famille, **une seule fois** par jeton tourné ;
+    - une deuxième présentation dans les 30 s, au-delà des 30 s, ou un jeton tourné puis expiré :
+      401 `Invalid refresh token` (même flag inactif) ; si le flag `auth-refresh-reuse-revocation`
+      est actif, toute la famille est supprimée (l'application doit renvoyer vers `/authorize`), y
+      compris un jeton émis au même moment par une requête concurrente.
     - Les clients doivent dédupliquer leurs rafraîchissements concurrents (une requête en vol par
       refresh token) et toujours conserver le dernier jeton reçu.
   - **Code réutilisé** : 401 `Authorization code already used` ; si le flag est actif, les refresh
-    tokens issus de ce code sont supprimés. Un code rejoué par un autre client, vers une autre
+    tokens issus de ce code sont supprimés, y compris celui du premier échange s'il est encore en
+    cours (il reçoit alors lui aussi ce 401 : la réutilisation est marquée sur le code avant la
+    suppression). Un code rejoué par un autre client, vers une autre
     `redirect_uri` ou sans le bon `code_verifier` reste un simple 401 `Invalid authorization code`
     (non compté dans `code_reused`).
-  - Télémétrie : `refresh_reused{client_id, kind: rotated_in_grace | concurrent_lost_race | rotated_after_grace, revoked}`,
-    `code_reused{client_id}`. Les jetons tournés sont purgés après 24 h.
+  - Télémétrie : `refresh_reused{client_id, kind: rotated_in_grace | concurrent_lost_race | rotated_after_grace | grace_exhausted, revoked}`
+    (`grace_exhausted` : deuxième présentation dans les 30 s), `code_reused{client_id}`. Les jetons
+    tournés (et leur marqueur de grâce) sont purgés après 24 h, les codes (et leur marqueur de
+    réutilisation) 24 h après leur expiration.
 
 Exemple de génération PKCE côté client (Node) :
 

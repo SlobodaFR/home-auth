@@ -115,4 +115,24 @@ describe('PurgeExpiredTokensUseCase', () => {
     ).not.toBeNull();
     expect(await refreshTokens.findByTokenHash('r-current')).not.toBeNull();
   });
+
+  it('purges the reuse markers with the rows that carry them (PC1, PC2)', async () => {
+    const { useCase, codes, refreshTokens } = createUseCase();
+    await refreshTokens.save(refresh('grace-spent', ago(2 * DAY)));
+    await refreshTokens.markRotated('grace-spent', ago(DAY + 2 * MINUTE));
+    await refreshTokens.claimGrace('grace-spent', ago(DAY + MINUTE));
+    await codes.save(code('reused', ago(2 * DAY)));
+    await codes.markReused('reused', ago(2 * DAY));
+    await codes.save(code('reused-recent', ago(MINUTE)));
+    await codes.markReused('reused-recent', ago(MINUTE));
+
+    const result = await useCase.execute(NOW);
+
+    expect(result).toMatchObject({ authorizationCodes: 1, refreshTokens: 1 });
+    expect(await refreshTokens.findByTokenHash('r-grace-spent')).toBeNull();
+    expect(await codes.findByCodeHash('reused')).toBeNull();
+    expect((await codes.findByCodeHash('reused-recent'))?.reusedAt).toEqual(
+      ago(MINUTE),
+    );
+  });
 });

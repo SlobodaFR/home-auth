@@ -6,6 +6,7 @@ const baseProps = {
   clientId: 'budget',
   redirectUri: 'https://budget.example.com/auth/callback',
   codeChallenge: null,
+  reusedAt: null,
 };
 
 describe('AuthorizationCode', () => {
@@ -15,6 +16,16 @@ describe('AuthorizationCode', () => {
 
     expect(code.isExpired(new Date('2024-01-01T00:00:59Z'))).toBe(false);
     expect(code.isExpired(new Date('2024-01-01T00:01:01Z'))).toBe(true);
+  });
+
+  it('is issued without reuse marker, and redeem keeps it', () => {
+    const code = AuthorizationCode.issue({
+      ...baseProps,
+      issuedAt: new Date('2024-01-01T00:00:00Z'),
+    });
+
+    expect(code.reusedAt).toBeNull();
+    expect(code.redeem(new Date('2024-01-01T00:00:30Z')).reusedAt).toBeNull();
   });
 
   it('redeem marks the code as used', () => {
