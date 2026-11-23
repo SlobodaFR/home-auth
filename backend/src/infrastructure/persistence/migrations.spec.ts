@@ -55,6 +55,49 @@ describe('database migrations', () => {
     await migrated.destroy();
   });
 
+  it('add users.session_version with 0 for existing users', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'db-')), 'old.sqlite');
+    const old = new DataSource({
+      type: 'better-sqlite3',
+      database: file,
+      entities: ENTITIES,
+      migrations: [MIGRATIONS[0]],
+      synchronize: false,
+    });
+    await old.initialize();
+    await old.runMigrations();
+    await old.query(
+      "INSERT INTO users (id, email, name, is_admin, created_at) VALUES ('u1', 'a@example.com', 'Alice', 1, datetime('now'))",
+    );
+    await old.destroy();
+
+    const migrated = dataSource(file);
+    await migrated.initialize();
+    await migrated.runMigrations();
+
+    expect(
+      await migrated.query('SELECT id, session_version FROM users'),
+    ).toEqual([{ id: 'u1', session_version: 0 }]);
+    await migrated.destroy();
+  });
+
+  it('make the session_version migration a no-op when the column already exists', async () => {
+    const ds = dataSource(':memory:');
+    await ds.initialize();
+    await ds.runMigrations();
+
+    const queryRunner = ds.createQueryRunner();
+    await new MIGRATIONS[1]().up(queryRunner);
+    await queryRunner.release();
+
+    expect(await ds.query('PRAGMA table_info("users")')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'session_version' }),
+      ]),
+    );
+    await ds.destroy();
+  });
+
   it('backfill each existing refresh token as its own family, not rotated', async () => {
     const file = join(mkdtempSync(join(tmpdir(), 'db-')), 'prod.sqlite');
     const before = new DataSource({

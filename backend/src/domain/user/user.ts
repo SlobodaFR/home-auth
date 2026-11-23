@@ -6,6 +6,8 @@ export interface UserProps {
   isAdmin: boolean;
   countryCode?: string | null;
   locale?: string | null;
+  /** Bumped to invalidate every SSO session of the user (logout, admin revocation). */
+  sessionVersion?: number;
   createdAt: Date;
 }
 
@@ -17,9 +19,13 @@ const LOCALE_PATTERN = /^[a-z]{2,3}(-[A-Z]{2})?$/;
  * User is the aggregate root for identity. Shared across all client
  * applications via the OAuth2 Authorization Code flow.
  */
-type ResolvedUserProps = Omit<UserProps, 'countryCode' | 'locale'> & {
+type ResolvedUserProps = Omit<
+  UserProps,
+  'countryCode' | 'locale' | 'sessionVersion'
+> & {
   countryCode: string | null;
   locale: string | null;
+  sessionVersion: number;
 };
 
 export class User {
@@ -42,7 +48,11 @@ export class User {
     if (locale !== null && !LOCALE_PATTERN.test(locale)) {
       throw new Error('Invalid locale');
     }
-    this.props = { ...props, email, name, countryCode, locale };
+    const sessionVersion = props.sessionVersion ?? 0;
+    if (!Number.isInteger(sessionVersion) || sessionVersion < 0) {
+      throw new Error('Invalid session version');
+    }
+    this.props = { ...props, email, name, countryCode, locale, sessionVersion };
   }
 
   static create(props: UserProps): User {
@@ -77,6 +87,10 @@ export class User {
     return this.props.locale;
   }
 
+  get sessionVersion(): number {
+    return this.props.sessionVersion;
+  }
+
   get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -99,5 +113,13 @@ export class User {
 
   withLocale(locale: string | null): User {
     return new User({ ...this.props, locale });
+  }
+
+  /** Invalidates every SSO session issued so far for this user. */
+  revokeSessions(): User {
+    return new User({
+      ...this.props,
+      sessionVersion: this.props.sessionVersion + 1,
+    });
   }
 }

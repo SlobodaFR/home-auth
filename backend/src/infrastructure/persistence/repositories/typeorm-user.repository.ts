@@ -44,6 +44,16 @@ export class TypeOrmUserRepository extends UserRepository {
     });
   }
 
+  async revokeSessions(userId: string): Promise<boolean> {
+    // Single atomic UPDATE: no read-modify-write that a concurrent save could interleave with.
+    const result = await this.repository.increment(
+      { id: userId },
+      'sessionVersion',
+      1,
+    );
+    return (result.affected ?? 0) > 0;
+  }
+
   async count(): Promise<number> {
     return this.repository.count();
   }
@@ -58,6 +68,7 @@ function toDomain(row: UserOrmEntity): User {
     isAdmin: row.isAdmin,
     countryCode: row.countryCode,
     locale: row.locale,
+    sessionVersion: row.sessionVersion,
     createdAt: row.createdAt,
   });
 }

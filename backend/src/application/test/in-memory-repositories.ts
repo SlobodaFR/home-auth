@@ -45,7 +45,33 @@ export class InMemoryUserRepository extends UserRepository {
   }
 
   async save(user: User): Promise<void> {
-    this.users.set(user.id, user);
+    // Like the real repository: save never changes the stored session version.
+    const stored = this.users.get(user.id);
+    this.users.set(
+      user.id,
+      stored
+        ? User.create({
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            avatarKey: user.avatarKey,
+            isAdmin: user.isAdmin,
+            countryCode: user.countryCode,
+            locale: user.locale,
+            createdAt: user.createdAt,
+            sessionVersion: stored.sessionVersion,
+          })
+        : user,
+    );
+  }
+
+  async revokeSessions(userId: string): Promise<boolean> {
+    const stored = this.users.get(userId);
+    if (!stored) {
+      return false;
+    }
+    this.users.set(userId, stored.revokeSessions());
+    return true;
   }
 
   async count(): Promise<number> {

@@ -30,6 +30,9 @@ export class UserOrmEntity {
   @Column({ type: 'text', nullable: true })
   locale!: string | null;
 
+  @Column({ type: 'integer', name: 'session_version', default: 0 })
+  sessionVersion!: number;
+
   @CreateDateColumn({ type: 'datetime', name: 'created_at' })
   createdAt!: Date;
 }
