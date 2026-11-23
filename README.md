@@ -279,6 +279,11 @@ Content-Type: application/json
 Les applications clientes doivent exposer ce endpoint et invalider leurs propres sessions/cookies pour
 cet utilisateur. Un échec ou un timeout du webhook n'empêche pas la déconnexion côté auth-service.
 
+L'URL du webhook doit être en `https` et ne pas contenir d'identifiants (`user:pass@`) ; la création
+ou la modification d'un client avec une autre URL est refusée (400). Un client existant en `http`
+reste modifiable tant que son URL n'est pas changée. La query string reste tolérée pendant la
+transition (retrait prévu une fois les apps passées à la signature).
+
 ## Docker
 
 ```bash
