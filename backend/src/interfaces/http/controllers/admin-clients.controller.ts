@@ -39,8 +39,8 @@ import {
   toClientSummaryDto,
 } from '../presenters/client.presenter';
 import { CreateClientResponseDto } from '../presenters/create-client-response.dto';
-import { SESSION_SECURITY_SCHEME } from '../session-cookie';
 import { WebhookSecretResponseDto } from '../presenters/webhook-secret-response.dto';
+import { SESSION_SECURITY_SCHEME } from '../session-cookie';
 
 @ApiTags('Admin - Clients')
 @ApiCookieAuth(SESSION_SECURITY_SCHEME)

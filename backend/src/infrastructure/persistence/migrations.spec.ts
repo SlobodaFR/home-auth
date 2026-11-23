@@ -191,15 +191,13 @@ describe('database migrations', () => {
     await new AddClientWebhookSecrets1794600000000().up(queryRunner);
     await queryRunner.release();
 
-    expect(
-      (await ds.query('PRAGMA table_info("clients")')).map(
-        (column: { name: string }) => column.name,
-      ),
-    ).toEqual(
+    expect(await ds.query('PRAGMA table_info("clients")')).toEqual(
       expect.arrayContaining([
-        'webhook_secret',
-        'webhook_secret_previous',
-        'webhook_secret_previous_expires_at',
+        expect.objectContaining({ name: 'webhook_secret' }),
+        expect.objectContaining({ name: 'webhook_secret_previous' }),
+        expect.objectContaining({
+          name: 'webhook_secret_previous_expires_at',
+        }),
       ]),
     );
     await ds.destroy();

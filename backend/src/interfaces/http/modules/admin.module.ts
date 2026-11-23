@@ -9,8 +9,8 @@ import {
   ListClientAccessUseCase,
   RevokeClientAccessUseCase,
 } from '../../../application/admin/manage-client-access.use-case';
-import { RevokeUserSessionsUseCase } from '../../../application/admin/revoke-user-sessions.use-case';
 import { RegenerateWebhookSecretUseCase } from '../../../application/admin/regenerate-webhook-secret.use-case';
+import { RevokeUserSessionsUseCase } from '../../../application/admin/revoke-user-sessions.use-case';
 import { UpdateClientUseCase } from '../../../application/admin/update-client.use-case';
 import { UpdateUserUseCase } from '../../../application/admin/update-user.use-case';
 import { LogoutUseCase } from '../../../application/auth/logout.use-case';
