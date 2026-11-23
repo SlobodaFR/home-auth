@@ -7,9 +7,8 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import request from 'supertest';
 import { LogoutUseCase } from '../../application/auth/logout.use-case';
 import { RequestMagicLinkUseCase } from '../../application/auth/request-magic-link.use-case';
+import { ResolveSessionUseCase } from '../../application/auth/resolve-session.use-case';
 import { VerifyMagicLinkUseCase } from '../../application/auth/verify-magic-link.use-case';
-import { SessionService } from '../../domain/auth/session.service';
-import { UserRepository } from '../../domain/user/user.repository';
 import { AuthController } from './controllers/auth.controller';
 import { THROTTLE_ERROR_MESSAGE, throttlerOptions } from './throttling';
 
@@ -44,8 +43,7 @@ describe('Rate limiting (HTTP)', () => {
           provide: ConfigService,
           useValue: { get: vi.fn<(key: string) => unknown>() },
         },
-        { provide: SessionService, useValue: {} },
-        { provide: UserRepository, useValue: {} },
+        { provide: ResolveSessionUseCase, useValue: {} },
       ],
     }).compile();
 

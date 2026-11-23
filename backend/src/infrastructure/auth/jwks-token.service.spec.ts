@@ -146,7 +146,7 @@ describe('JwksTokenService', () => {
       const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
       const service = new JwksTokenService(keys, CONFIG);
 
-      const session = await new JwtSessionService(keys).sign('user-1');
+      const session = await new JwtSessionService(keys).sign('user-1', 0);
 
       expect(await service.verifyAccessToken(session)).toBeNull();
     });
@@ -222,13 +222,38 @@ describe('JwtSessionService', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('signs and verifies a session token', async () => {
+  it('signs and verifies a session token with its session version', async () => {
     const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
     const service = new JwtSessionService(keys);
 
-    const token = await service.sign('user-1');
+    const token = await service.sign('u1', 3);
 
-    expect(await service.verify(token)).toBe('user-1');
+    expect(await service.verify(token)).toEqual({
+      userId: 'u1',
+      sessionVersion: 3,
+    });
+  });
+
+  // Cookies issued before the sv claim existed stay readable until the strict rollout (PC9 D3).
+  it('reads a session token without sv as a legacy token (version null)', async () => {
+    const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
+    const service = new JwtSessionService(keys);
+
+    expect(await service.verify(await signRaw(keys, {}))).toEqual({
+      userId: 'u1',
+      sessionVersion: null,
+    });
+  });
+
+  it.each([
+    ['a string', 'x'],
+    ['a non-integer', 1.5],
+    ['a negative number', -1],
+  ])('rejects a session token whose sv is %s', async (_label, sv) => {
+    const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
+    const service = new JwtSessionService(keys);
+
+    expect(await service.verify(await signRaw(keys, { sv }))).toBeNull();
   });
 
   it('rejects a malformed session token', async () => {
@@ -238,3 +263,17 @@ describe('JwtSessionService', () => {
     expect(await service.verify('not-a-token')).toBeNull();
   });
 });
+
+// A session JWT signed like JwtSessionService does, with arbitrary extra claims.
+async function signRaw(
+  keys: RsaKeyProvider,
+  claims: Record<string, unknown>,
+): Promise<string> {
+  return new SignJWT(claims)
+    .setProtectedHeader({ alg: 'RS256', kid: keys.getKeyId() })
+    .setSubject('u1')
+    .setAudience('auth-service-session')
+    .setIssuedAt()
+    .setExpirationTime('60s')
+    .sign(keys.getPrivateKey());
+}

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { RefreshTokenRepository } from '../../domain/auth/refresh-token.repository';
 import { ClientRepository } from '../../domain/client/client.repository';
 import { WebhookNotifier } from '../../domain/shared/webhook-notifier';
+import { UserRepository } from '../../domain/user/user.repository';
 
 @Injectable()
 export class LogoutUseCase {
@@ -11,9 +12,13 @@ export class LogoutUseCase {
     private readonly refreshTokenRepository: RefreshTokenRepository,
     private readonly clientRepository: ClientRepository,
     private readonly webhookNotifier: WebhookNotifier,
+    private readonly userRepository: UserRepository,
   ) {}
 
   async execute(userId: string): Promise<void> {
+    // Kills every SSO session cookie of the user, on all devices (PC9).
+    await this.userRepository.revokeSessions(userId);
+
     const tokens = await this.refreshTokenRepository.findAllForUser(userId);
     const clientIds = [...new Set(tokens.map((token) => token.clientId))];
 

@@ -28,13 +28,12 @@ import {
 } from '../../../application/auth/exchange-code.use-case';
 import { LookupUserByEmailUseCase } from '../../../application/auth/lookup-user-by-email.use-case';
 import { RefreshTokenUseCase } from '../../../application/auth/refresh-token.use-case';
+import { ResolveSessionUseCase } from '../../../application/auth/resolve-session.use-case';
 import {
   GetUserInfoUseCase,
   UserInfo,
 } from '../../../application/profile/get-user-info.use-case';
-import { SessionService } from '../../../domain/auth/session.service';
 import { Telemetry } from '../../../domain/shared/telemetry';
-import { UserRepository } from '../../../domain/user/user.repository';
 import { AuthorizeQueryDto } from '../dto/authorize-query.dto';
 import { LookupUserByEmailDto } from '../dto/lookup-user-by-email.dto';
 import { TokenRequestDto } from '../dto/token-request.dto';
@@ -56,8 +55,7 @@ export class OAuthController {
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
     private readonly getUserInfo: GetUserInfoUseCase,
     private readonly lookupUserByEmailUseCase: LookupUserByEmailUseCase,
-    private readonly sessionService: SessionService,
-    private readonly userRepository: UserRepository,
+    private readonly resolveSession: ResolveSessionUseCase,
     private readonly config: ConfigService,
     private readonly telemetry: Telemetry,
   ) {}
@@ -78,7 +76,10 @@ export class OAuthController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const userId = await this.getSessionUserId(req);
+    const cookies = req.cookies as Record<string, string | undefined>;
+    const userId =
+      (await this.resolveSession.execute(cookies[SESSION_COOKIE_NAME]))?.id ??
+      null;
     if (!userId) {
       this.telemetry.capture({
         name: 'authorize',
@@ -146,21 +147,6 @@ export class OAuthController {
       redirectUrl.searchParams.set('state', query.state);
     }
     res.redirect(redirectUrl.toString());
-  }
-
-  private async getSessionUserId(req: Request): Promise<string | null> {
-    const token = (req.cookies as Record<string, string | undefined>)[
-      SESSION_COOKIE_NAME
-    ];
-    if (!token) {
-      return null;
-    }
-    const userId = await this.sessionService.verify(token);
-    if (!userId) {
-      return null;
-    }
-    const user = await this.userRepository.findById(userId);
-    return user ? user.id : null;
   }
 
   @Post('token')

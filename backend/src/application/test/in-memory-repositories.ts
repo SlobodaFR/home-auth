@@ -7,7 +7,10 @@ import {
   RefreshTokenProps,
 } from '../../domain/auth/refresh-token';
 import { RefreshTokenRepository } from '../../domain/auth/refresh-token.repository';
-import { SessionService } from '../../domain/auth/session.service';
+import {
+  SessionService,
+  VerifiedSession,
+} from '../../domain/auth/session.service';
 import {
   AccessTokenClaims,
   AccessTokenPayload,
@@ -393,12 +396,20 @@ export class FakeTokenService extends TokenService {
 }
 
 export class FakeSessionService extends SessionService {
-  async sign(userId: string): Promise<string> {
-    return `session:${userId}`;
+  async sign(userId: string, sessionVersion: number): Promise<string> {
+    return `session:${userId}:${sessionVersion.toString()}`;
   }
 
-  async verify(token: string): Promise<string | null> {
-    return token.startsWith('session:') ? token.slice('session:'.length) : null;
+  /** `session:<userId>` (no version) stands for a legacy token issued before the sv claim. */
+  async verify(token: string): Promise<VerifiedSession | null> {
+    if (!token.startsWith('session:')) {
+      return null;
+    }
+    const parts = token.slice('session:'.length).split(':');
+    return {
+      userId: parts[0],
+      sessionVersion: parts.length > 1 ? Number(parts[1]) : null,
+    };
   }
 }
 

@@ -245,7 +245,7 @@ const challenge = crypto
 
 - `POST /auth/request-link` — envoie un lien magique par email
 - `POST /auth/callback` — échange le token du lien magique contre une session (cookie `auth_session`)
-- `POST /auth/logout` — révoque les refresh tokens et notifie les clients (voir ci-dessous)
+- `POST /auth/logout` — invalide **toutes** les sessions SSO de l'utilisateur (tous ses appareils), révoque ses refresh tokens et notifie les clients (voir ci-dessous)
 
 ### Profil
 

@@ -25,9 +25,8 @@ function createController(options: {
     {} as never,
     {} as never,
     {
-      verify: () => Promise.resolve(options.session ? 'user-1' : null),
+      execute: () => Promise.resolve(options.session ? { id: 'user-1' } : null),
     } as never,
-    { findById: () => Promise.resolve({ id: 'user-1' }) } as never,
     { get: (_key: string, fallback: string) => fallback } as never,
     telemetry,
   );

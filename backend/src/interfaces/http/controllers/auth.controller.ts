@@ -81,7 +81,10 @@ export class AuthController {
   @HttpCode(204)
   @UseGuards(SameOriginGuard, SessionAuthGuard)
   @ApiCookieAuth('auth_session')
-  @ApiOperation({ summary: 'Log out and clear the session cookie' })
+  @ApiOperation({
+    summary:
+      'Log out of every device: revokes all SSO sessions of the user and clears the cookie',
+  })
   @ApiResponse({ status: 204, description: 'Logged out' })
   async logout(
     @CurrentUser() user: SessionUser,

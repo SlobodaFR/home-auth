@@ -74,7 +74,10 @@ export class VerifyMagicLinkUseCase {
       throw new NotFoundException('User not found');
     }
 
-    const sessionToken = await this.sessionService.sign(user.id);
+    const sessionToken = await this.sessionService.sign(
+      user.id,
+      user.sessionVersion,
+    );
     this.telemetry.capture(
       { name: 'login_succeeded', properties: { method: 'magic_link' } },
       user.id,
