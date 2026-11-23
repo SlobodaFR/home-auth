@@ -19,10 +19,15 @@ export class TelemetryInterceptor implements NestInterceptor {
   constructor(private readonly telemetry: Telemetry) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    // A global interceptor also runs on WebSocket handlers: no route, no method, one event per message.
+    if (context.getType() !== 'http') {
+      return next.handle();
+    }
     const http = context.switchToHttp();
     const req = http.getRequest<Request>();
     const res = http.getResponse<Response>();
-    if (UNREPORTED_ROUTES.has(routeOf(req))) {
+    const route = routeOf(req);
+    if (route === 'unknown' || UNREPORTED_ROUTES.has(route)) {
       return next.handle();
     }
     const startedAt = performance.now();
@@ -30,7 +35,7 @@ export class TelemetryInterceptor implements NestInterceptor {
       this.telemetry.capture({
         name: 'http_request',
         properties: {
-          route: routeOf(req),
+          route,
           method: req.method,
           status,
           duration_ms: Math.round(performance.now() - startedAt),

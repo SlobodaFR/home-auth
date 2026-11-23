@@ -13,6 +13,7 @@ type CaptureMessage = Parameters<PostHogClient['capture']>[0];
 class FakeClient implements PostHogClient {
   readonly captured: CaptureMessage[] = [];
   shutdowns = 0;
+  shutdownTimeouts: (number | undefined)[] = [];
   failing = false;
 
   capture(message: CaptureMessage): void {
@@ -22,8 +23,9 @@ class FakeClient implements PostHogClient {
     this.captured.push(message);
   }
 
-  async shutdown(): Promise<void> {
+  async shutdown(timeoutMs?: number): Promise<void> {
     this.shutdowns += 1;
+    this.shutdownTimeouts.push(timeoutMs);
     return Promise.resolve();
   }
 }
@@ -149,5 +151,13 @@ describe('PostHogTelemetry', () => {
     await new PostHogTelemetry(client, SECRET).onApplicationShutdown();
 
     expect(client.shutdowns).toBe(1);
+  });
+
+  it('bounds the shutdown flush to 5 s, under the 10 s Docker stop timeout', async () => {
+    const client = new FakeClient();
+
+    await new PostHogTelemetry(client, SECRET).onApplicationShutdown();
+
+    expect(client.shutdownTimeouts).toEqual([5000]);
   });
 });
