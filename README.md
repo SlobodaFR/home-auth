@@ -259,7 +259,7 @@ const challenge = crypto
 - `GET/POST /admin/users`, `PATCH /admin/users/:id` — gestion des utilisateurs
 - `POST /admin/users/:id/revoke-sessions` — déconnecte l'utilisateur de tous ses appareils (même effet que son propre logout : sessions SSO invalidées, refresh tokens révoqués, clients notifiés). `204`, ou `404` si l'utilisateur est inconnu. Les access tokens déjà émis restent valables jusqu'à leur expiration (15 min).
 - `GET/POST/PATCH/DELETE /admin/clients` — gestion des clients OAuth2 (secret affiché une seule fois à la création)
-- `POST /admin/clients/:id/webhook-secret` — génère ou régénère le secret de signature du webhook (`{ "webhookSecret": "<64 hex>" }`, affiché une seule fois, jamais relu : `GET /admin/clients` ne renvoie que `hasWebhookSecret`). L'ancien secret reste valide 24 h
+- `POST /admin/clients/:id/webhook-secret` — génère ou régénère le secret de signature du webhook (`{ "webhookSecret": "<64 hex>" }`, affiché une seule fois, jamais relu : `GET /admin/clients` ne renvoie que `hasWebhookSecret`). L'ancien secret reste valide 24 h (une seconde régénération dans cette fenêtre écarte aussitôt le plus ancien)
 - `GET/POST /admin/clients/:id/access`, `DELETE /admin/clients/:id/access/:userId` — liste blanche d'accès par client
 
 ## Contrat des access tokens
