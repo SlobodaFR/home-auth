@@ -12,6 +12,7 @@ import { GetUserInfoUseCase } from '../../application/profile/get-user-info.use-
 import { FakeTelemetry } from '../../application/test/in-memory-repositories';
 import { SessionService } from '../../domain/auth/session.service';
 import { TokenService } from '../../domain/auth/token.service';
+import { ClientRepository } from '../../domain/client/client.repository';
 import { Telemetry } from '../../domain/shared/telemetry';
 import { UserRepository } from '../../domain/user/user.repository';
 import { OAuthController } from './controllers/oauth.controller';
@@ -63,6 +64,7 @@ describe('OAuth state and PKCE (HTTP)', () => {
         },
         { provide: Telemetry, useValue: new FakeTelemetry() },
         { provide: TokenService, useValue: {} },
+        { provide: ClientRepository, useValue: {} },
       ],
     }).compile();
     app = moduleRef.createNestApplication<NestExpressApplication>();

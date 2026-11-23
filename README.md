@@ -121,6 +121,7 @@ const challenge = crypto
 ```
 
 - `GET /userinfo` — infos de l'utilisateur courant (Bearer access token)
+  - `GET /userinfo` et `GET /me` : 401 si l'audience (`aud`) du jeton n'est pas une seule chaîne désignant un client existant (client supprimé, jeton multi-audience).
 
 ### SSO maison
 
@@ -148,7 +149,7 @@ JWT RS256 signé par la clé publiée sur `/.well-known/jwks.json`, valable 15 m
 | Claim           | Valeur                                                                                        |
 | --------------- | --------------------------------------------------------------------------------------------- |
 | `iss`           | `new URL(AUTH_BASE_URL).origin` (ex. `https://auth.sloboda.fr`) ; `AUTH_BASE_URL` sans chemin |
-| `aud`           | `client_id` du client OAuth2 (une chaîne)                                                     |
+| `aud`           | `client_id` du client OAuth2 (une seule chaîne ; doit désigner un client existant)            |
 | `sub`           | id de l'utilisateur                                                                           |
 | `email`, `name` | profil au moment de l'émission                                                                |
 | `isAdmin`       | instantané au moment de l'émission                                                            |

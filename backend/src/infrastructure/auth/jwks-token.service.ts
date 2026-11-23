@@ -56,12 +56,19 @@ export class JwksTokenService extends TokenService {
       if (payload.iss !== undefined && payload.iss !== this.issuer) {
         return null;
       }
+      // Exactly one audience (PC4): a token naming several clients is never accepted. The guard
+      // passes no `audience` (any existing client is valid), so this is the only aud check there.
+      const aud = Array.isArray(payload.aud)
+        ? payload.aud.length === 1
+          ? payload.aud[0]
+          : undefined
+        : payload.aud;
       if (
         !payload.sub ||
         typeof payload.email !== 'string' ||
         typeof payload.name !== 'string' ||
         typeof payload.isAdmin !== 'boolean' ||
-        !payload.aud ||
+        !aud ||
         typeof payload.iat !== 'number' ||
         typeof payload.exp !== 'number'
       ) {
@@ -72,7 +79,7 @@ export class JwksTokenService extends TokenService {
         email: payload.email,
         name: payload.name,
         isAdmin: payload.isAdmin,
-        aud: Array.isArray(payload.aud) ? payload.aud[0] : payload.aud,
+        aud,
         iat: payload.iat,
         exp: payload.exp,
       };
