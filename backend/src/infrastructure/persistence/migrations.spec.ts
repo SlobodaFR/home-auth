@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { ENTITIES } from './entities';
 import { MIGRATIONS } from './migrations';
 import { InitialSchema1794400000000 } from './migrations/1794400000000-InitialSchema';
+import { AddUserSessionVersion1794700000000 } from './migrations/1794700000000-AddUserSessionVersion';
 import { AddRefreshTokenFamilies1794800000000 } from './migrations/1794800000000-AddRefreshTokenFamilies';
 
 function dataSource(database: string, synchronize = false): DataSource {
@@ -132,6 +133,7 @@ describe('database migrations', () => {
       database: file,
       migrations: [
         InitialSchema1794400000000,
+        AddUserSessionVersion1794700000000,
         AddRefreshTokenFamilies1794800000000,
       ],
     });
