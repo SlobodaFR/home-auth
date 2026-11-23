@@ -305,6 +305,13 @@ Content-Type: application/json
 Les applications clientes doivent exposer ce endpoint et invalider leurs propres sessions/cookies pour
 cet utilisateur. Un échec ou un timeout du webhook n'empêche pas la déconnexion côté auth-service.
 
+Livraison : l'appel part de façon asynchrone (jamais dans le chemin de la déconnexion), avec un délai
+TOTAL de 2 s, sans retry ni redirection suivie (seul un 2xx est un succès). Les cibles non publiques
+sont refusées à la connexion : IP littérale ou adresses résolues (toutes contrôlées, puis connexion aux
+adresses validées) dans `0.0.0.0/8`, `10/8`, `100.64/10`, `127/8`, `169.254/16`, `172.16/12`,
+`192.168/16`, `198.18/15`, `224/4`, `240/4`, `::`, `::1`, `fc00::/7`, `fe80::/10`, `::ffff:0:0/96`,
+`64:ff9b::/96`, `2002::/16`.
+
 L'URL du webhook doit être en `https` et ne pas contenir d'identifiants (`user:pass@`) ; la création
 ou la modification d'un client avec une autre URL est refusée (400). Un client existant en `http`
 reste modifiable tant que son URL n'est pas changée. La query string reste tolérée pendant la
