@@ -53,6 +53,33 @@ describe('validateEnv', () => {
     });
   });
 
+  describe('AUTH_BASE_URL is an origin (it gives the iss claim, PC3)', () => {
+    it.each([
+      ['a path', 'https://auth.sloboda.fr/auth'],
+      ['a query', 'https://auth.sloboda.fr/?a=1'],
+      ['a fragment', 'https://auth.sloboda.fr/#a'],
+    ])('rejects one with %s', (_label, url) => {
+      expect(() => validateEnv({ ...PROD, AUTH_BASE_URL: url })).toThrow(
+        'AUTH_BASE_URL',
+      );
+      expect(() =>
+        validateEnv({ NODE_ENV: 'development', AUTH_BASE_URL: url }),
+      ).toThrow('AUTH_BASE_URL');
+    });
+
+    it('accepts one with a trailing slash', () => {
+      expect(() =>
+        validateEnv({ ...PROD, AUTH_BASE_URL: 'https://auth.sloboda.fr/' }),
+      ).not.toThrow();
+    });
+
+    it('rejects one that is not a URL outside production too', () => {
+      expect(() =>
+        validateEnv({ NODE_ENV: 'development', AUTH_BASE_URL: 'auth' }),
+      ).toThrow('AUTH_BASE_URL');
+    });
+  });
+
   describe('outside production', () => {
     it('falls back to the development secret', () => {
       expect(validateEnv({ NODE_ENV: 'development' }).PSEUDONYM_SECRET).toBe(

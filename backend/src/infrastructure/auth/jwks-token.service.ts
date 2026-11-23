@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { jwtVerify, SignJWT } from 'jose';
 import {
   AccessTokenClaims,
@@ -11,8 +12,17 @@ import { RsaKeyProvider } from './rsa-key-provider';
 
 @Injectable()
 export class JwksTokenService extends TokenService {
-  constructor(private readonly keys: RsaKeyProvider) {
+  /** iss of every access token (PC3): the origin of AUTH_BASE_URL (validate-env forbids a path). */
+  private readonly issuer: string;
+
+  constructor(
+    private readonly keys: RsaKeyProvider,
+    config: ConfigService,
+  ) {
     super();
+    this.issuer = new URL(
+      config.get<string>('AUTH_BASE_URL') || 'http://localhost:3000',
+    ).origin;
   }
 
   async signAccessToken(
@@ -25,6 +35,7 @@ export class JwksTokenService extends TokenService {
       isAdmin: payload.isAdmin,
     })
       .setProtectedHeader({ alg: 'RS256', kid: this.keys.getKeyId() })
+      .setIssuer(this.issuer)
       .setSubject(payload.sub)
       .setAudience(payload.aud)
       .setIssuedAt()
@@ -37,11 +48,14 @@ export class JwksTokenService extends TokenService {
     audience?: string,
   ): Promise<AccessTokenClaims | null> {
     try {
-      const { payload } = await jwtVerify(
-        token,
-        this.keys.getPublicKey(),
-        audience ? { audience } : undefined,
-      );
+      const { payload } = await jwtVerify(token, this.keys.getPublicKey(), {
+        algorithms: ['RS256'],
+        ...(audience ? { audience } : {}),
+      });
+      // Absent iss is tolerated while tokens issued before B1 are still valid (≤ 15 min); B3 requires it.
+      if (payload.iss !== undefined && payload.iss !== this.issuer) {
+        return null;
+      }
       if (
         !payload.sub ||
         typeof payload.email !== 'string' ||

@@ -2,10 +2,14 @@ import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
+import { decodeJwt, SignJWT } from 'jose';
 import { ACCESS_TOKEN_TTL } from '../../domain/auth/token.service';
 import { JwksTokenService } from './jwks-token.service';
 import { JwtSessionService } from './jwt-session.service';
 import { RsaKeyProvider } from './rsa-key-provider';
+
+const ISSUER = 'https://auth.example.test';
+const CONFIG = new ConfigService({ AUTH_BASE_URL: `${ISSUER}/` });
 
 async function createKeyProvider(
   databasePath: string,
@@ -60,7 +64,7 @@ describe('JwksTokenService', () => {
 
   it('signs and verifies an access token', async () => {
     const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
-    const service = new JwksTokenService(keys);
+    const service = new JwksTokenService(keys, CONFIG);
 
     const token = await service.signAccessToken({
       sub: 'user-1',
@@ -81,7 +85,7 @@ describe('JwksTokenService', () => {
 
   it('rejects a token with the wrong audience', async () => {
     const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
-    const service = new JwksTokenService(keys);
+    const service = new JwksTokenService(keys, CONFIG);
 
     const token = await service.signAccessToken({
       sub: 'user-1',
@@ -94,16 +98,70 @@ describe('JwksTokenService', () => {
     expect(await service.verifyAccessToken(token, 'other-client')).toBeNull();
   });
 
+  describe('issuer (PC3)', () => {
+    const payload = {
+      sub: 'user-1',
+      email: 'alice@example.com',
+      name: 'Alice',
+      isAdmin: false,
+      aud: 'budget',
+    };
+
+    async function signWith(keys: RsaKeyProvider, iss?: string) {
+      const jwt = new SignJWT({
+        email: payload.email,
+        name: payload.name,
+        isAdmin: payload.isAdmin,
+      })
+        .setProtectedHeader({ alg: 'RS256', kid: keys.getKeyId() })
+        .setSubject(payload.sub)
+        .setAudience(payload.aud)
+        .setIssuedAt()
+        .setExpirationTime('60s');
+      return (iss ? jwt.setIssuer(iss) : jwt).sign(keys.getPrivateKey());
+    }
+
+    it('emits iss, the origin of AUTH_BASE_URL', async () => {
+      const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
+      const service = new JwksTokenService(keys, CONFIG);
+
+      const token = await service.signAccessToken(payload);
+
+      expect(decodeJwt(token).iss).toBe(ISSUER);
+      expect(await service.verifyAccessToken(token, 'budget')).not.toBeNull();
+    });
+
+    it('rejects a token from another issuer', async () => {
+      const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
+      const service = new JwksTokenService(keys, CONFIG);
+
+      for (const iss of ['https://evil.example.test', `${ISSUER}/`]) {
+        expect(
+          await service.verifyAccessToken(await signWith(keys, iss)),
+        ).toBeNull();
+      }
+    });
+
+    it('still accepts a token without iss (issued before B1, until B3)', async () => {
+      const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
+      const service = new JwksTokenService(keys, CONFIG);
+
+      expect((await service.verifyAccessToken(await signWith(keys)))?.sub).toBe(
+        'user-1',
+      );
+    });
+  });
+
   it('rejects a malformed token', async () => {
     const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
-    const service = new JwksTokenService(keys);
+    const service = new JwksTokenService(keys, CONFIG);
 
     expect(await service.verifyAccessToken('not-a-token')).toBeNull();
   });
 
   it('exposes the public key via JWKS', async () => {
     const keys = await createKeyProvider(join(dir, 'auth.sqlite'));
-    const service = new JwksTokenService(keys);
+    const service = new JwksTokenService(keys, CONFIG);
 
     const jwks = await service.getJwks();
 
