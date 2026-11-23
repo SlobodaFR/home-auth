@@ -129,6 +129,23 @@ describe('ExchangeCodeUseCase', () => {
     expect(stored?.userId).toBe('user-1');
   });
 
+  it('starts a refresh token family named after the code hash', async () => {
+    const deps = createUseCase();
+    await seed(deps);
+
+    const result = await deps.useCase.execute({
+      code: RAW_CODE,
+      clientId: 'budget',
+      clientSecret: RAW_SECRET,
+      redirectUri: REDIRECT_URI,
+    });
+
+    const stored = await deps.refreshTokenRepository.findByTokenHash(
+      hashToken(result.refreshToken),
+    );
+    expect(stored?.familyId).toBe(hashToken(RAW_CODE));
+  });
+
   it('rejects an invalid client secret', async () => {
     const deps = createUseCase();
     await seed(deps);

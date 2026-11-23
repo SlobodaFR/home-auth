@@ -111,6 +111,8 @@ export class ExchangeCodeUseCase {
         userId: user.id,
         clientId: client.id,
         createdAt: new Date(),
+        // One family per login: a replayed code can revoke what it issued (PC2).
+        familyId: redeemed.codeHash,
       }),
     );
 

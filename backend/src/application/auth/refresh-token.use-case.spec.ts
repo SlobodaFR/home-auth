@@ -15,6 +15,7 @@ import { RefreshTokenUseCase } from './refresh-token.use-case';
 
 const RAW_SECRET = 's3cret';
 const RAW_REFRESH_TOKEN = 'raw-refresh-token';
+const FAMILY_ID = 'family-1';
 
 describe('RefreshTokenUseCase', () => {
   function createUseCase() {
@@ -71,6 +72,8 @@ describe('RefreshTokenUseCase', () => {
           clientId: 'budget',
           createdAt: new Date(),
           expiresAt,
+          familyId: FAMILY_ID,
+          rotatedAt: null,
         })
       : RefreshToken.issue({
           id: randomUUID(),
@@ -78,6 +81,7 @@ describe('RefreshTokenUseCase', () => {
           userId: 'user-1',
           clientId: 'budget',
           createdAt: new Date(),
+          familyId: FAMILY_ID,
         });
     await deps.refreshTokenRepository.save(token);
   }
@@ -126,6 +130,22 @@ describe('RefreshTokenUseCase', () => {
     ).not.toBeNull();
     const claims = JSON.parse(result.accessToken) as { isAdmin: boolean };
     expect(claims.isAdmin).toBe(false);
+  });
+
+  it('keeps the new refresh token in the family of the one it replaces', async () => {
+    const deps = createUseCase();
+    await seed(deps);
+
+    const result = await deps.useCase.execute({
+      refreshToken: RAW_REFRESH_TOKEN,
+      clientId: 'budget',
+      clientSecret: RAW_SECRET,
+    });
+
+    const rotated = await deps.refreshTokenRepository.findByTokenHash(
+      hashToken(result.refreshToken),
+    );
+    expect(rotated?.familyId).toBe(FAMILY_ID);
   });
 
   it('rejects an invalid client secret', async () => {
