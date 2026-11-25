@@ -10,6 +10,7 @@ export const API_ROUTES = [
   '/.well-known{/*path}',
   '/docs{/*path}',
   '/authorize',
+  '/logout',
   '/token{/*path}',
   '/userinfo',
   '/profile{/*path}',

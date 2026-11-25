@@ -23,6 +23,17 @@ export type TelemetryEvent =
         | { outcome: 'login_required' | 'unknown_client' | 'invalid_request' };
     }
   | {
+      // PC10 service-initiated logout. client_id only once the client is resolved; never state,
+      // URIs or the hint.
+      name: 'rp_logout';
+      properties:
+        | {
+            outcome: 'logged_out' | 'no_session' | 'confirm_required';
+            client_id: string;
+          }
+        | { outcome: 'unknown_client' | 'invalid_request' };
+    }
+  | {
       name: 'token_exchanged';
       properties: {
         client_id: string;

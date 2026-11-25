@@ -35,3 +35,37 @@ describe('apiClient.revokeUserSessions', () => {
     );
   });
 });
+
+describe('apiClient.confirmRpLogout', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('POSTs the params as JSON and returns the server-built redirect', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ redirect_to: 'https://a.fr/bye' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const redirectTo = await apiClient.confirmRpLogout({
+      client_id: 'budget',
+      post_logout_redirect_uri: 'https://a.fr/bye',
+      state: 's',
+    });
+
+    expect(redirectTo).toBe('https://a.fr/bye');
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
+      '/auth/rp-logout',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: 'budget',
+          post_logout_redirect_uri: 'https://a.fr/bye',
+          state: 's',
+        }),
+      }),
+    );
+  });
+});
