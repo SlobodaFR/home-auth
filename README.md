@@ -182,6 +182,7 @@ services home-* le recopient tel quel.
 | Flag                            | Défaut du code | Effet quand `true`                                                                                                 |
 | ------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `auth-refresh-reuse-revocation` | `false`        | Réutilisation d'un refresh token après la fenêtre de grâce, ou d'un code d'autorisation : la famille est supprimée |
+| `auth-rp-initiated-logout`      | `false`        | `GET /logout` et `POST /auth/rp-logout` actifs (déconnexion initiée par un service, PC10) ; sinon `404`            |
 
 ## Base de données
 
@@ -245,6 +246,7 @@ const challenge = crypto
 
 - `POST /auth/request-link` — envoie un lien magique par email
 - `POST /auth/callback` — échange le token du lien magique contre une session (cookie `__Host-auth_session` en production, `auth_session` en développement : le préfixe impose `Secure`, `Path=/` et l'absence de `Domain`)
+- `GET /logout` et `POST /auth/rp-logout` — déconnexion initiée par un service, ce navigateur uniquement, derrière le flag `auth-rp-initiated-logout` (voir « Contrat de déconnexion initiée par un service »)
 - `POST /auth/logout` — invalide **toutes** les sessions SSO de l'utilisateur (tous ses appareils), révoque ses refresh tokens et notifie les clients (voir ci-dessous)
 
 ### Profil
@@ -365,6 +367,101 @@ L'URL du webhook doit être en `https` et ne pas contenir d'identifiants (`user:
 ou la modification d'un client avec une autre URL est refusée (400). Un client existant en `http`
 reste modifiable tant que son URL n'est pas changée. La query string reste tolérée pendant la
 transition (retrait prévu une fois les apps passées à la signature).
+
+## Contrat de déconnexion initiée par un service (PC10)
+
+Derrière le flag `auth-rp-initiated-logout` (défaut du code : `false`). Flag inactif : `GET /logout` et
+`POST /auth/rp-logout` répondent `404` (404 JSON de Nest), évalué à chaque requête. La page SPA
+`/logout/confirm` existe quel que soit le flag.
+
+Le bouton « Se déconnecter » d'un service ne vidait que ses propres cookies : la session SSO de
+home-auth survivait et la connexion suivante était silencieuse. Ce flow (style OIDC RP-initiated
+logout) efface la session SSO **de ce navigateur uniquement**. « Se déconnecter partout »
+(`POST /auth/logout`) reste inchangé.
+
+```http
+GET https://auth.sloboda.fr/logout
+      ?client_id=<id du client>
+      &post_logout_redirect_uri=<url de retour>
+      [&state=<opaque, 512 caractères max>]
+      [&access_token_hint=<access token du client, encore valide>]
+```
+
+Méthode `GET` uniquement (`HEAD` ne déconnecte jamais). Toutes les réponses de `/logout` et de
+`POST /auth/rp-logout` portent `Cache-Control: no-store`. Le client y envoie le navigateur par une
+navigation de premier niveau, jamais `fetch` (cookie SSO `SameSite=Lax`).
+
+**Validation** (avant tout effet de bord ; au moindre échec : redirection vers `/error` de home-auth
+avec `reason` = `unknown_client` (client inconnu) ou `invalid_request` (autre paramètre invalide),
+**jamais** vers `post_logout_redirect_uri`, et jamais avec `access_token_hint`) :
+
+- `client_id` : `^[a-z0-9][a-z0-9-]*$`, client existant ;
+- `post_logout_redirect_uri` : 2048 caractères max ; analysée par le parseur WHATWG (`new URL`), de
+  schéma `http` ou `https`, sans identifiants (`user:pass@`), sans fragment, et dont `origin` (schéma +
+  hôte + port, après normalisation) est **égale** à l'`origin` d'au moins une `redirectUri` enregistrée
+  du client. Une origine `null` (schéma personnalisé) ne correspond jamais, ni côté candidat ni côté
+  enregistré. La `Location` est reconstruite depuis `url.href`, jamais depuis la chaîne brute ;
+- `state` : 512 caractères max, ajouté par `searchParams.set` (il **remplace** un `state` déjà présent
+  dans l'URI).
+
+**Tout chemin et toute query d'une origine enregistrée sont considérés de confiance.** Une origine qui
+héberge sa propre redirection ouverte en ferait une redirection ouverte chaînée depuis
+`auth.sloboda.fr` : ne pas enregistrer de `redirectUris` sur une origine partagée. Les `redirectUris`
+ne sont pas restreintes en schéma : un client de production qui garde `http://localhost:5173/…`
+enregistré rend `http://localhost:5173/*` valide ici aussi.
+
+**Comportement** :
+
+1. Pas de session SSO valide dans ce navigateur (absente, expirée, déjà révoquée) : cookie effacé,
+   `302` vers `post_logout_redirect_uri` (idempotent). Rien d'autre.
+2. Session valide **et** `access_token_hint` valide **et** requête de navigation réelle
+   (`Sec-Fetch-Mode: navigate`, `Sec-Fetch-Dest: document`, ni `Sec-Purpose` ni `Purpose` indiquant
+   un prefetch/prerender) : cookie effacé, `302` vers `post_logout_redirect_uri`. Hint valide =
+   `verifyAccessToken(hint, client_id)` (signature, `iss`, une seule `aud` = `client_id`, non expiré)
+   et `sub` = utilisateur de la session.
+3. Tous les autres cas avec session (pas de hint, hint invalide ou d'un autre utilisateur, en-têtes
+   `Sec-Fetch-*` absents ou prefetch) : `302` vers `/logout/confirm?client_id=…&post_logout_redirect_uri=…&state=…`
+   (sans hint, `Cache-Control: no-store`). Ce n'est jamais une erreur. Cela empêche un site tiers de
+   déconnecter l'utilisateur par simple lien ou prerender (logout CSRF).
+
+**Écran de confirmation** (`/logout/confirm`, route SPA publique) : n'affiche que le `client_id`
+conforme au motif ci-dessus, aucun autre texte tiré de l'URL. Deux actions : « Se déconnecter » et
+« Se déconnecter partout » (`POST /auth/logout`, inchangé), plus « Annuler » (`history.back()`).
+
+`POST /auth/rp-logout` — `SameOriginGuard` seul (JSON, cookie) ; **pas** de `SessionAuthGuard`.
+Corps `{ client_id, post_logout_redirect_uri, state? }`, mêmes validations (400 sinon, rien n'est
+fait). Résout lui-même la session ; avec ou sans session valide : cookie effacé, `200 { redirect_to }`.
+`redirect_to` est construit par le serveur (URI validée + `state` encodé) ; la SPA y navigue par
+`location.assign` et ne construit jamais l'URL depuis sa propre query string.
+
+**Effets d'une déconnexion** :
+
+- le cookie SSO de ce navigateur est effacé ; `sessionVersion` n'est **pas** incrémenté : les sessions
+  SSO des autres appareils restent valides ;
+- **rien n'est révoqué côté serveur** : ni refresh tokens (aucun lien avec une session de navigateur :
+  les supprimer déconnecterait les autres appareils du service), ni webhook (il signifie « déconnecté
+  partout »). C'est au service de jeter son propre refresh token ;
+- limite : le JWT de session est sans état ; un cookie copié avant la déconnexion reste valide
+  jusqu'à son expiration (30 jours) ou « Se déconnecter partout ». Ce n'est donc pas une
+  déconnexion de sécurité sur un appareil partagé : utiliser « Se déconnecter partout ».
+
+Télémétrie : `rp_logout{outcome: logged_out | no_session | confirm_required | unknown_client |
+invalid_request, client_id?}` (`client_id` seulement une fois le client résolu ; jamais `state`, URI
+ni hint).
+
+**Ce que doit faire un service client** :
+
+1. Garder en mémoire l'access token courant **de ce client** (`aud` = son `client_id`) s'il est encore
+   valide (< 15 min ; un token obtenu par refresh convient), puis jeter localement cookies, session et
+   refresh token.
+2. Rediriger le navigateur (navigation de premier niveau) vers `GET /logout` avec `client_id`,
+   `post_logout_redirect_uri` (URL d'une origine de ses `redirectUris`), un `state` aléatoire qu'il
+   vérifie au retour, et `access_token_hint` quand il en a un valide. Le hint est un bearer token en
+   query string : ne l'envoyer qu'à home-auth (les requêtes ne sont pas journalisées avec leur query).
+3. Accepter les deux atterrissages (redirection immédiate ou écran de confirmation préalable) sans
+   supposer de délai. À l'arrivée sur `post_logout_redirect_uri`, afficher l'état déconnecté (ne pas
+   relancer `/authorize` automatiquement). Un refresh token qui échoue ne doit jamais être le signal
+   d'une déconnexion locale due à ce flow.
 
 ## Docker
 

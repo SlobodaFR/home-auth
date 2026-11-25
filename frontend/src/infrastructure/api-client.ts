@@ -85,6 +85,20 @@ export const apiClient = {
     await request('/auth/logout', { method: 'POST' });
   },
 
+  /** The server revalidates everything and builds the URL: the caller never does. */
+  async confirmRpLogout(params: {
+    client_id: string;
+    post_logout_redirect_uri: string;
+    state?: string;
+  }): Promise<string> {
+    const { redirect_to } = await sendJson<{ redirect_to: string }>(
+      '/auth/rp-logout',
+      'POST',
+      params,
+    );
+    return redirect_to;
+  },
+
   async fetchCurrentUser(): Promise<CurrentUser | null> {
     const response = await fetch('/profile', { credentials: 'include' });
     if (!response.ok) {

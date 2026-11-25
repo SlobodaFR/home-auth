@@ -14,7 +14,7 @@ const MESSAGES: Record<string, { title: string; description: string }> = {
   invalid_request: {
     title: 'Requete invalide',
     description:
-      "La demande de connexion est invalide ou incomplete. Revenez sur l'application et reessayez.",
+      "La demande de connexion ou de deconnexion est invalide ou incomplete. Revenez sur l'application et reessayez.",
   },
 };
 

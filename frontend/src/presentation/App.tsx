@@ -6,6 +6,7 @@ import { AdminClientsPage } from './pages/AdminClientsPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { AuthCallbackPage } from './pages/AuthCallbackPage';
 import { AuthErrorPage } from './pages/AuthErrorPage';
+import { LogoutConfirmPage } from './pages/LogoutConfirmPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 
@@ -14,6 +15,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/logout/confirm" element={<LogoutConfirmPage />} />
       <Route path="/error" element={<AuthErrorPage />} />
       <Route
         path="/"

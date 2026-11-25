@@ -41,6 +41,7 @@ describe('API_ROUTES (excluded from the SPA fallback)', () => {
     '/.well-known/jwks.json',
     '/.well-known/openid-configuration',
     '/authorize?client_id=a&state=b',
+    '/logout?client_id=x',
     '/token',
     '/token/',
     '/userinfo',
@@ -59,12 +60,17 @@ describe('API_ROUTES (excluded from the SPA fallback)', () => {
     expect(response.text).not.toContain('SPA');
   });
 
-  it.each(['/', '/login', '/auth/callback?token=abc', '/consent/x'])(
-    'leaves %s to the SPA',
-    async (url) => {
-      const response = await request(app.getHttpServer()).get(url);
-      expect(response.status).toBe(200);
-      expect(response.text).toContain('SPA');
-    },
-  );
+  it.each([
+    '/',
+    '/login',
+    '/auth/callback?token=abc',
+    '/consent/x',
+    '/logout/confirm?client_id=x',
+    // Trailing slash: not the API route, so it reaches the SPA (intentional).
+    '/logout/',
+  ])('leaves %s to the SPA', async (url) => {
+    const response = await request(app.getHttpServer()).get(url);
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('SPA');
+  });
 });
