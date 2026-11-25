@@ -23,11 +23,15 @@ describe('displayableClientId', () => {
 
 describe('logoutEverywhere', () => {
   const failing = (status: number) => ({
-    logout: vi.fn().mockRejectedValue(new ApiError('nope', status)),
+    logout: vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(new ApiError('nope', status)),
   });
 
   it('calls logout', async () => {
-    const api = { logout: vi.fn().mockResolvedValue(undefined) };
+    const api = {
+      logout: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    };
     await logoutEverywhere(api);
     expect(api.logout).toHaveBeenCalledOnce();
   });
@@ -41,7 +45,11 @@ describe('logoutEverywhere', () => {
   });
 
   it('still fails on a network error', async () => {
-    const api = { logout: vi.fn().mockRejectedValue(new TypeError('offline')) };
+    const api = {
+      logout: vi
+        .fn<() => Promise<void>>()
+        .mockRejectedValue(new TypeError('offline')),
+    };
     await expect(logoutEverywhere(api)).rejects.toThrow('offline');
   });
 
