@@ -9,6 +9,7 @@ import { validateEnv } from './infrastructure/config/validate-env';
 import { CoreModule } from './infrastructure/core.module';
 import { loggerParams } from './infrastructure/logging/logger.config';
 import { DatabaseModule } from './infrastructure/persistence/database.module';
+import { API_ROUTES } from './interfaces/http/api-routes';
 import { AdminModule } from './interfaces/http/modules/admin.module';
 import { AuthModule } from './interfaces/http/modules/auth.module';
 import { OAuthModule } from './interfaces/http/modules/oauth.module';
@@ -17,24 +18,6 @@ import { ServerErrorTelemetryFilter } from './interfaces/http/server-error-telem
 import { TelemetryThrottlerGuard } from './interfaces/http/telemetry-throttler.guard';
 import { TelemetryInterceptor } from './interfaces/http/telemetry.interceptor';
 import { throttlerOptions } from './interfaces/http/throttling';
-
-// All /auth/* routes are POST-only, so the static SPA fallback (GET-only)
-// never intercepts them. GET /auth/callback?token=... must fall through to
-// index.html so the React app can handle the magic-link redirect.
-const API_ROUTES = [
-  '/.well-known/(.*)',
-  '/docs',
-  '/docs/(.*)',
-  '/authorize',
-  '/token',
-  '/token/(.*)',
-  '/userinfo',
-  '/profile',
-  '/profile/(.*)',
-  '/avatars/(.*)',
-  '/admin/(.*)',
-  '/healthz',
-];
 
 @Module({
   imports: [
