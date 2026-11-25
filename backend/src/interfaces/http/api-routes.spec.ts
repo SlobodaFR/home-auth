@@ -1,13 +1,42 @@
-import type { Request } from 'express';
-import { isRouteExcluded } from '@nestjs/serve-static/dist/utils/is-route-excluded.util';
+import { Module } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import request from 'supertest';
 import { API_ROUTES } from './api-routes';
 
-// @nestjs/serve-static is a no-op under @nestjs/testing, so the exclusion list is checked with the
-// exact predicate it applies in production (path-to-regexp 8, Express 5 syntax).
-const excluded = (url: string): boolean =>
-  isRouteExcluded({ originalUrl: url } as Request, API_ROUTES);
-
+// The exclusion list is exercised through the real ServeStaticModule (path-to-regexp 8, Express 5
+// syntax). No controller is registered: an excluded route must fall through to Nest's JSON 404,
+// anything else must be answered with the SPA's index.html.
 describe('API_ROUTES (excluded from the SPA fallback)', () => {
+  let root: string;
+  let app: NestExpressApplication;
+
+  beforeAll(async () => {
+    root = mkdtempSync(join(tmpdir(), 'spa-'));
+    writeFileSync(join(root, 'index.html'), '<html>SPA</html>');
+
+    @Module({
+      imports: [
+        ServeStaticModule.forRoot({ rootPath: root, exclude: API_ROUTES }),
+      ],
+    })
+    class TestModule {}
+
+    app = await NestFactory.create<NestExpressApplication>(TestModule, {
+      logger: false,
+    });
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    rmSync(root, { recursive: true, force: true });
+  });
+
   it.each([
     '/.well-known/jwks.json',
     '/.well-known/openid-configuration',
@@ -24,14 +53,18 @@ describe('API_ROUTES (excluded from the SPA fallback)', () => {
     '/docs',
     '/docs/swagger-ui.css',
     '/healthz',
-  ])('keeps %s on the API', (url) => {
-    expect(excluded(url)).toBe(true);
+  ])('keeps %s on the API', async (url) => {
+    const response = await request(app.getHttpServer()).get(url);
+    expect(response.status).toBe(404);
+    expect(response.text).not.toContain('SPA');
   });
 
   it.each(['/', '/login', '/auth/callback?token=abc', '/consent/x'])(
     'leaves %s to the SPA',
-    (url) => {
-      expect(excluded(url)).toBe(false);
+    async (url) => {
+      const response = await request(app.getHttpServer()).get(url);
+      expect(response.status).toBe(200);
+      expect(response.text).toContain('SPA');
     },
   );
 });
