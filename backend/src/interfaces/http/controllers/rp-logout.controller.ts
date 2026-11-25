@@ -37,6 +37,14 @@ function single(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
+/** An optional query parameter: absent is fine, repeated or non-string is not. */
+function optionalSingle(value: unknown): string | undefined | null {
+  if (value === undefined) {
+    return undefined;
+  }
+  return typeof value === 'string' ? value : null;
+}
+
 function header(req: Request, name: string): string {
   const value = req.headers[name];
   return (Array.isArray(value) ? value[0] : value) ?? '';
@@ -87,13 +95,12 @@ export class RpLogoutController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    res.setHeader('Cache-Control', 'no-store');
-    const state = single(query.state);
+    const state = optionalSingle(query.state);
     const hint = single(query.access_token_hint);
     const params = {
       clientId: single(query.client_id),
       postLogoutRedirectUri: single(query.post_logout_redirect_uri),
-      state: query.state === undefined ? undefined : state,
+      state: state ?? undefined,
     };
     const cookies = req.cookies as Record<string, string | undefined>;
     const result = await this.rpLogout.begin({
@@ -101,6 +108,8 @@ export class RpLogoutController {
       sessionCookie: cookies[sessionCookieName()],
       hint: hint && hint.length <= HINT_MAX_LENGTH ? hint : undefined,
       isNavigation: isRealNavigation(req),
+      // A repeated or non-string state is a malformed request, never an empty state.
+      malformed: state === null,
     });
 
     const frontendUrl = this.config.get<string>(
@@ -148,7 +157,6 @@ export class RpLogoutController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ redirect_to: string }> {
-    res.setHeader('Cache-Control', 'no-store');
     const cookies = req.cookies as Record<string, string | undefined>;
     const result: RpLogoutResult = await this.rpLogout.confirm({
       clientId: dto.client_id,

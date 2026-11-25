@@ -388,7 +388,8 @@ GET https://auth.sloboda.fr/logout
 ```
 
 Méthode `GET` uniquement (`HEAD` ne déconnecte jamais). Toutes les réponses de `/logout` et de
-`POST /auth/rp-logout` portent `Cache-Control: no-store`. Le client y envoie le navigateur par une
+`POST /auth/rp-logout` portent `Cache-Control: no-store`, y compris les `400`/`403`/`404` produits avant
+le handler (middleware). Le client y envoie le navigateur par une
 navigation de premier niveau, jamais `fetch` (cookie SSO `SameSite=Lax`).
 
 **Validation** (avant tout effet de bord ; au moindre échec : redirection vers `/error` de home-auth
@@ -401,6 +402,7 @@ avec `reason` = `unknown_client` (client inconnu) ou `invalid_request` (autre pa
   hôte + port, après normalisation) est **égale** à l'`origin` d'au moins une `redirectUri` enregistrée
   du client. Une origine `null` (schéma personnalisé) ne correspond jamais, ni côté candidat ni côté
   enregistré. La `Location` est reconstruite depuis `url.href`, jamais depuis la chaîne brute ;
+- `state` répété (`state=a&state=b`) : `invalid_request`.
 - `state` : 512 caractères max, ajouté par `searchParams.set` (il **remplace** un `state` déjà présent
   dans l'URI).
 

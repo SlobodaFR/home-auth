@@ -24,6 +24,8 @@ export interface BeginRpLogoutInput extends RpLogoutParams {
   hint?: string;
   /** A real top-level navigation (not a prefetch, prerender or subresource request). */
   isNavigation: boolean;
+  /** The query was malformed (e.g. a repeated parameter): invalid_request. */
+  malformed?: boolean;
 }
 
 export interface ConfirmRpLogoutInput extends RpLogoutParams {
@@ -53,7 +55,9 @@ export class RpLogoutUseCase {
 
   async begin(input: BeginRpLogoutInput): Promise<RpLogoutResult> {
     await this.assertEnabled();
-    const validated = await this.validate(input);
+    const validated = input.malformed
+      ? this.reject('invalid_request')
+      : await this.validate(input);
     if (validated.kind === 'invalid') {
       return validated;
     }
@@ -121,29 +125,30 @@ export class RpLogoutUseCase {
     return { kind: 'redirect', redirectTo, clearCookie: true };
   }
 
+  private reject(reason: 'unknown_client' | 'invalid_request') {
+    this.telemetry.capture({
+      name: 'rp_logout',
+      properties: { outcome: reason },
+    });
+    return { kind: 'invalid' as const, reason };
+  }
+
   private async validate(
     params: RpLogoutParams,
   ): Promise<
     | { kind: 'invalid'; reason: 'unknown_client' | 'invalid_request' }
     | { kind: 'valid'; redirectTo: string }
   > {
-    const invalid = (reason: 'unknown_client' | 'invalid_request') => {
-      this.telemetry.capture({
-        name: 'rp_logout',
-        properties: { outcome: reason },
-      });
-      return { kind: 'invalid' as const, reason };
-    };
     if (
       params.clientId.length > CLIENT_ID_MAX_LENGTH ||
       !CLIENT_ID_PATTERN.test(params.clientId) ||
       (params.state?.length ?? 0) > STATE_MAX_LENGTH
     ) {
-      return invalid('invalid_request');
+      return this.reject('invalid_request');
     }
     const client = await this.clientRepository.findById(params.clientId);
     if (!client) {
-      return invalid('unknown_client');
+      return this.reject('unknown_client');
     }
     const redirectTo = resolvePostLogoutRedirect(
       params.postLogoutRedirectUri,
@@ -151,7 +156,7 @@ export class RpLogoutUseCase {
       params.state,
     );
     if (!redirectTo) {
-      return invalid('invalid_request');
+      return this.reject('invalid_request');
     }
     return { kind: 'valid', redirectTo };
   }
