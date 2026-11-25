@@ -22,7 +22,7 @@ describe('API_ROUTES (excluded from the SPA fallback)', () => {
     '/admin/users',
     '/admin/clients/c1/access',
     '/docs',
-    '/docs/json',
+    '/docs/swagger-ui.css',
     '/healthz',
   ])('keeps %s on the API', (url) => {
     expect(excluded(url)).toBe(true);
