@@ -9,13 +9,18 @@ cd "$DEPLOY_DIR/deploy"
 export IMAGE
 export IMAGE_TAG
 
+# Convention harnais image-retention : avant le pull, fait de la place (garde 1 image par dépôt, au moins ; jamais d'image utilisée).
+sh "$DEPLOY_DIR/deploy/scripts/prune-service-images.sh" --phase pre \
+  --service auth --image ghcr.io/slobodafr/home-auth --tag "$IMAGE_TAG" --project auth-service
 docker compose pull
 # Convention harnais deploy-wait-healthy : `docker compose up -d --wait` (repli : boucle docker inspect) ; un conteneur
 # qui n'est pas sain après 180 s fait échouer le déploiement (logs, sauvegarde et restauration affichées), sans retour arrière automatique.
 sh "$DEPLOY_DIR/deploy/scripts/compose-up-healthy.sh" --service auth \
   --restore-args "--project auth-service --volume auth-data --mount /app/backend/data --db-path /app/backend/data/sso.sqlite" \
   -- --remove-orphans
-docker image prune -f
+# Convention harnais image-retention : après un déploiement sain uniquement (set -e), garde la courante + la précédente (retour arrière).
+sh "$DEPLOY_DIR/deploy/scripts/prune-service-images.sh" --phase post \
+  --service auth --image ghcr.io/slobodafr/home-auth --tag "$IMAGE_TAG" --project auth-service
 
 if ! command -v caddy >/dev/null 2>&1; then
   sudo apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https curl
