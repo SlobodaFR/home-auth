@@ -22,8 +22,10 @@ import { throttlerOptions } from './interfaces/http/throttling';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
-    // Must stay after ConfigModule: it loads .env into process.env synchronously.
-    LoggerModule.forRoot(loggerParams(process.env.NODE_ENV)),
+    // Async: @nestjs/config 12 loads .env into process.env after the decorator arguments evaluate.
+    LoggerModule.forRootAsync({
+      useFactory: () => loggerParams(process.env.NODE_ENV),
+    }),
     ThrottlerModule.forRoot(throttlerOptions),
     DatabaseModule,
     CoreModule,
