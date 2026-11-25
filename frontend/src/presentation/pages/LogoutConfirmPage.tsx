@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { displayableClientId } from '../../domain/logout-request';
+import {
+  displayableClientId,
+  logoutEverywhere,
+} from '../../domain/logout-request';
 import { apiClient } from '../../infrastructure/api-client';
 
 export function LogoutConfirmPage() {
@@ -23,7 +26,7 @@ export function LogoutConfirmPage() {
     setFailed(false);
     try {
       if (everywhere) {
-        await apiClient.logout();
+        await logoutEverywhere(apiClient);
       }
       const redirectTo = await apiClient.confirmRpLogout({
         client_id: clientIdParam,

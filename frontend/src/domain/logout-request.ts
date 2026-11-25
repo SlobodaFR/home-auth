@@ -15,3 +15,22 @@ export function displayableClientId(value: string | null): string | null {
   }
   return value;
 }
+
+/**
+ * "Log out everywhere": an already expired session (401) is the state the user wanted, so the
+ * flow goes on to the redirect. Any other failure still surfaces.
+ */
+export async function logoutEverywhere(api: {
+  logout(): Promise<void>;
+}): Promise<void> {
+  try {
+    await api.logout();
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      (error as Error & { status?: unknown }).status !== 401
+    ) {
+      throw error;
+    }
+  }
+}

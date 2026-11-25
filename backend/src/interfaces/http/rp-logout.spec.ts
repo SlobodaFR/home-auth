@@ -1,4 +1,9 @@
-import { ValidationPipe } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  ValidationPipe,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
@@ -25,6 +30,7 @@ import { FeatureFlags } from '../../domain/shared/feature-flags';
 import { Telemetry } from '../../domain/shared/telemetry';
 import { User } from '../../domain/user/user';
 import { UserRepository } from '../../domain/user/user.repository';
+import { applyRpLogoutNoStore } from './rp-logout-no-store.middleware';
 import { RpLogoutController } from './controllers/rp-logout.controller';
 import { SameOriginGuard } from './guards/same-origin.guard';
 import { sessionCookieName } from './session-cookie';
@@ -78,7 +84,7 @@ describe('Service-initiated logout PC10 (HTTP)', () => {
       isAdmin: false,
       aud: 'budget',
     });
-    const moduleRef = await Test.createTestingModule({
+    @Module({
       controllers: [RpLogoutController],
       providers: [
         RpLogoutUseCase,
@@ -98,6 +104,14 @@ describe('Service-initiated logout PC10 (HTTP)', () => {
           }),
         },
       ],
+    })
+    class TestModule implements NestModule {
+      configure(consumer: MiddlewareConsumer): void {
+        applyRpLogoutNoStore(consumer);
+      }
+    }
+    const moduleRef = await Test.createTestingModule({
+      imports: [TestModule],
     }).compile();
     app = moduleRef.createNestApplication<NestExpressApplication>();
     app.use(cookieParser());
@@ -132,6 +146,7 @@ describe('Service-initiated logout PC10 (HTTP)', () => {
         .set('Cookie', cookie())
         .set(NAVIGATE);
       expect(res.status).toBe(404);
+      expect(res.headers['cache-control']).toBe('no-store');
       expect(clearsCookie(res)).toBe(false);
     });
 
@@ -252,6 +267,13 @@ describe('Service-initiated logout PC10 (HTTP)', () => {
       ],
       ['missing uri', { client_id: 'budget' }, 'invalid_request'],
       [
+        'repeated state',
+        'client_id=budget&post_logout_redirect_uri=' +
+          encodeURIComponent(URI) +
+          '&state=a&state=b',
+        'invalid_request',
+      ],
+      [
         'array parameter',
         'client_id=budget&client_id=x&post_logout_redirect_uri=' +
           encodeURIComponent(URI),
@@ -306,6 +328,7 @@ describe('Service-initiated logout PC10 (HTTP)', () => {
         .set('Cookie', cookie())
         .send(body);
       expect(res.status).toBe(403);
+      expect(res.headers['cache-control']).toBe('no-store');
       expect(clearsCookie(res)).toBe(false);
     });
 
@@ -317,6 +340,7 @@ describe('Service-initiated logout PC10 (HTTP)', () => {
         .type('form')
         .send(body);
       expect(res.status).toBe(415);
+      expect(res.headers['cache-control']).toBe('no-store');
     });
 
     it.each([
@@ -331,12 +355,15 @@ describe('Service-initiated logout PC10 (HTTP)', () => {
     ])('answers 400 and keeps the cookie on %s', async (_l, b) => {
       const res = await post(b, { Cookie: cookie() });
       expect(res.status).toBe(400);
+      expect(res.headers['cache-control']).toBe('no-store');
       expect(clearsCookie(res)).toBe(false);
     });
 
     it('is a 404 when the flag is off', async () => {
       flags.values.set(RP_LOGOUT_FLAG, false);
-      expect((await post(body, { Cookie: cookie() })).status).toBe(404);
+      const res = await post(body, { Cookie: cookie() });
+      expect(res.status).toBe(404);
+      expect(res.headers['cache-control']).toBe('no-store');
     });
   });
 });

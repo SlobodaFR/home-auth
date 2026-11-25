@@ -44,6 +44,16 @@ export interface UpdateClientPayload {
   logoutWebhookUrl?: string | null;
 }
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { credentials: 'include', ...init });
   if (!response.ok) {
@@ -52,10 +62,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       body && typeof body === 'object' && 'message' in body
         ? body.message
         : null;
-    throw new Error(
+    throw new ApiError(
       typeof message === 'string'
         ? message
         : `Request to ${path} failed (${response.status})`,
+      response.status,
     );
   }
   if (response.status === 204) {
