@@ -66,6 +66,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max,ignore-error=true
 
+      - name: Non-root migration check (a root-owned data volume, once chowned to 1000, must boot with its data and keys)
+        run: sh .github/scripts/nonroot-volume-migration-check.sh --image home-auth:ci-${{ github.run_id }}-${{ github.run_attempt }}
+
       - name: Boot check (the container must start and stay healthy)
         run: |
           sh .github/scripts/docker-boot-check.sh --service home-auth --image home-auth:ci-${{ github.run_id }}-${{ github.run_attempt }} --rm-image \
