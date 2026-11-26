@@ -19,7 +19,7 @@ export function Header() {
 
   async function handleLogout() {
     await logout();
-    navigate('/login');
+    await navigate('/login');
   }
 
   const links = NAV_LINKS.filter((link) => !link.adminOnly || user?.isAdmin);
