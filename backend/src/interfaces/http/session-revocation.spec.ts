@@ -32,6 +32,7 @@ import { AuthController } from './controllers/auth.controller';
 import { SameOriginGuard } from './guards/same-origin.guard';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 import { sessionCookieName } from './session-cookie';
+import { serializedTypeOrmRoot } from '../../test-support/serialized-typeorm';
 
 @Controller('whoami')
 class WhoAmIController {
@@ -54,7 +55,7 @@ describe('SSO session revocation (HTTP, end to end)', () => {
     dir = mkdtempSync(join(tmpdir(), 'revocation-'));
     const moduleRef = await Test.createTestingModule({
       imports: [
-        TypeOrmModule.forRoot({
+        serializedTypeOrmRoot({
           type: 'better-sqlite3',
           database: ':memory:',
           entities: ENTITIES,
