@@ -18,11 +18,12 @@ import { TypeOrmClientRepository } from './typeorm-client.repository';
 import { TypeOrmMagicLinkTokenRepository } from './typeorm-magic-link-token.repository';
 import { TypeOrmRefreshTokenRepository } from './typeorm-refresh-token.repository';
 import { TypeOrmUserRepository } from './typeorm-user.repository';
+import { serializedTypeOrmRoot } from '../../../test-support/serialized-typeorm';
 
 async function createTestingModule() {
   const moduleRef = await Test.createTestingModule({
     imports: [
-      TypeOrmModule.forRoot({
+      serializedTypeOrmRoot({
         type: 'better-sqlite3',
         database: ':memory:',
         entities: ENTITIES,

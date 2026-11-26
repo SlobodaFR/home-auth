@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ENTITIES } from './entities';
 import { MIGRATIONS } from './migrations';
 import { SchemaGuard } from './schema-guard';
+import { serializedDataSourceFactory } from './serialized-connection';
 import { SLOW_QUERY_THRESHOLD_MS, SlowQueryLogger } from './slow-query.logger';
 
 @Module({
@@ -25,6 +26,9 @@ import { SLOW_QUERY_THRESHOLD_MS, SlowQueryLogger } from './slow-query.logger';
         migrations: MIGRATIONS,
         migrationsRun: true,
       }),
+      // Before initialize(): migrations and the app run on the serialized connection
+      // (convention sqlite-serialized-transactions).
+      dataSourceFactory: serializedDataSourceFactory,
     }),
   ],
   providers: [SchemaGuard],

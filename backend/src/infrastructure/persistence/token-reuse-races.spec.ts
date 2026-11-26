@@ -20,6 +20,7 @@ import { TypeOrmAuthorizationCodeRepository } from './repositories/typeorm-autho
 import { TypeOrmClientRepository } from './repositories/typeorm-client.repository';
 import { TypeOrmRefreshTokenRepository } from './repositories/typeorm-refresh-token.repository';
 import { TypeOrmUserRepository } from './repositories/typeorm-user.repository';
+import { serializedTypeOrmRoot } from '../../test-support/serialized-typeorm';
 
 /**
  * Reuse races (PC1, PC2) against the real SQLite repositories. The dangerous interleaving (a reuse
@@ -59,7 +60,7 @@ function firstSettled(runs: Promise<unknown>[]): Promise<string> {
 async function setup() {
   const moduleRef = await Test.createTestingModule({
     imports: [
-      TypeOrmModule.forRoot({
+      serializedTypeOrmRoot({
         type: 'better-sqlite3',
         database: ':memory:',
         entities: ENTITIES,
