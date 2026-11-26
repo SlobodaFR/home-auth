@@ -13,6 +13,12 @@ export IMAGE_TAG
 sh "$DEPLOY_DIR/deploy/scripts/prune-service-images.sh" --phase pre \
   --service auth --image ghcr.io/slobodafr/home-auth --tag "$IMAGE_TAG" --project auth-service
 docker compose pull
+# Convention harnais docker-nonroot-volume : le volume cree par l'ancienne image (root) est rendu a l'uid 1000 de l'image
+# non root. Le service est arrete puis le volume chown, dans le deploiement (sous le verrou d'hote de deploy-vps.yml).
+# ORDRE (non verifie par l'audit) : la sauvegarde pre-deploy-backup tourne AVANT ce script ; ne jamais deplacer ce chown
+# avant elle, ni apres compose-up-healthy.sh. `set -e` : pas de `||`.
+sh "$DEPLOY_DIR/deploy/scripts/fix-volume-owner.sh" --service auth \
+  --project auth-service --volume auth-data --stop auth-service
 # Convention harnais deploy-wait-healthy : `docker compose up -d --wait` (repli : boucle docker inspect) ; un conteneur
 # qui n'est pas sain après 180 s fait échouer le déploiement (logs, sauvegarde et restauration affichées), sans retour arrière automatique.
 sh "$DEPLOY_DIR/deploy/scripts/compose-up-healthy.sh" --service auth \
