@@ -4,6 +4,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { buildInfo } from './infrastructure/observability/build-info';
 import { buildCorsOptions } from './interfaces/http/cors';
 import { applySecurityHeaders } from './interfaces/http/security-headers';
 import { setupSwagger } from './interfaces/http/swagger';
@@ -38,6 +39,8 @@ async function bootstrap(): Promise<void> {
 
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   await app.listen(port);
+  const { version, commit } = buildInfo();
+  app.get(Logger).log(`home-auth started version=${version} commit=${commit}`);
 }
 
 void bootstrap();

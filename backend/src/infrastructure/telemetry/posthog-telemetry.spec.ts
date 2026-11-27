@@ -88,6 +88,7 @@ describe('PostHogTelemetry', () => {
           client_id: 'budget',
           outcome: 'code',
           service: 'home-auth',
+          version: 'dev',
           $ip: null,
         },
         disableGeoip: true,
@@ -105,6 +106,7 @@ describe('PostHogTelemetry', () => {
 
     expect(client.captured[0].properties).toEqual({
       service: 'home-auth',
+      version: 'dev',
       $ip: null,
     });
   });
@@ -128,9 +130,25 @@ describe('PostHogTelemetry', () => {
     expect(first.properties).toEqual({
       outcome: 'unknown',
       service: 'home-auth',
+      version: 'dev',
       $ip: null,
       $process_person_profile: false,
     });
+  });
+
+  it('adds the release version (APP_VERSION) to every ops event', () => {
+    vi.stubEnv('APP_VERSION', '2.5.1');
+    const client = new FakeClient();
+    const telemetry = new PostHogTelemetry(client, SECRET);
+
+    telemetry.capture({ name: 'http_request', properties: { route: '/x' } });
+    telemetry.capture({ name: 'runtime_health', properties: { elu: 0.1 } });
+
+    expect(client.captured.map((c) => c.properties['version'])).toEqual([
+      '2.5.1',
+      '2.5.1',
+    ]);
+    vi.unstubAllEnvs();
   });
 
   it('never throws into the caller', () => {

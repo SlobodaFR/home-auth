@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
+import { buildInfo } from '../../../infrastructure/observability/build-info';
 import {
   RuntimeHealthMonitor,
   RuntimeHealthSample,
@@ -14,7 +15,12 @@ export class HealthController {
   constructor(private readonly monitor: RuntimeHealthMonitor) {}
 
   @Get()
-  health(): { status: 'ok'; runtime: RuntimeHealthSample | null } {
-    return { status: 'ok', runtime: this.monitor.lastSample };
+  health(): {
+    status: 'ok';
+    version: string;
+    commit: string;
+    runtime: RuntimeHealthSample | null;
+  } {
+    return { status: 'ok', ...buildInfo(), runtime: this.monitor.lastSample };
   }
 }
