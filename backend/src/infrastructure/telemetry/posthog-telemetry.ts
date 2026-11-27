@@ -86,6 +86,8 @@ export class PostHogTelemetry
           ...sanitizeTelemetryProperties(event.properties),
           // The PostHog project may be shared by several home services.
           service: 'home-auth',
+          // Release version baked into the image (APP_VERSION, 'dev' outside CI), on every event.
+          version: process.env['APP_VERSION'] || 'dev',
           // Belt and braces only: the enforceable control is the project setting "Discard client IP data".
           $ip: null,
           ...(userId ? {} : { $process_person_profile: false }),

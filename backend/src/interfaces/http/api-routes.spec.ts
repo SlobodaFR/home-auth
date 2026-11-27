@@ -54,6 +54,7 @@ describe('API_ROUTES (excluded from the SPA fallback)', () => {
     '/docs',
     '/docs/swagger-ui.css',
     '/healthz',
+    '/version',
   ])('keeps %s on the API', async (url) => {
     const response = await request(app.getHttpServer()).get(url);
     expect(response.status).toBe(404);

@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   lint-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -42,7 +42,7 @@ jobs:
         run: npm run build
 
   docker-build-check:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     needs: lint-and-test
     if: github.event_name == 'pull_request'
 
@@ -72,6 +72,6 @@ jobs:
       - name: Boot check (the container must start and stay healthy)
         run: |
           sh .github/scripts/docker-boot-check.sh --service home-auth --image home-auth:ci-${{ github.run_id }}-${{ github.run_attempt }} --rm-image \
-            --volume /app/backend/data --path /healthz --expect /healthz=200 --expect /.well-known/jwks.json=200 --expect /me=401 --forbid-ts \
+            --volume /app/backend/data --path /healthz --expect /healthz=200 --expect /version=200 --expect /.well-known/jwks.json=200 --expect /me=401 --forbid-ts \
             --env AUTH_BASE_URL=https://auth.example.test --env FRONTEND_URL=https://app.example.test \
             --secret PSEUDONYM_SECRET

@@ -17,4 +17,5 @@ export const API_ROUTES = [
   '/avatars{/*path}',
   '/admin{/*path}',
   '/healthz',
+  '/version',
 ];

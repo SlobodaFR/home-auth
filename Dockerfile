@@ -59,6 +59,10 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
 USER node
 VOLUME ["/app/backend/data"]
 WORKDIR /app/backend
+# Release identity (convention harnais release-versioning), en fin d'étage final : le cache de build reste valide.
+ARG APP_VERSION=dev
+ARG APP_COMMIT=dev
+ENV APP_VERSION=$APP_VERSION APP_COMMIT=$APP_COMMIT
 EXPOSE 3000
 # curl is purged from the image: use Node's fetch.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \

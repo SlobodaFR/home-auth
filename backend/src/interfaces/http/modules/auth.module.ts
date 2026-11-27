@@ -8,6 +8,7 @@ import { HealthController } from '../controllers/health.controller';
 import { RpLogoutController } from '../controllers/rp-logout.controller';
 import { applyRpLogoutNoStore } from '../rp-logout-no-store.middleware';
 import { JwksController } from '../controllers/jwks.controller';
+import { VersionController } from '../controllers/version.controller';
 
 @Module({
   controllers: [
@@ -15,6 +16,7 @@ import { JwksController } from '../controllers/jwks.controller';
     RpLogoutController,
     JwksController,
     HealthController,
+    VersionController,
   ],
   providers: [
     RequestMagicLinkUseCase,

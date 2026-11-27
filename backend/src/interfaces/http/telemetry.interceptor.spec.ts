@@ -55,6 +55,11 @@ class HealthController {
   healthz(): string {
     return 'ok';
   }
+
+  @Get('version')
+  version(): string {
+    return 'ok';
+  }
 }
 
 describe('HTTP telemetry', () => {
@@ -150,6 +155,12 @@ describe('HTTP telemetry', () => {
 
   it('does not report /healthz (polled by Docker)', async () => {
     await request(app.getHttpServer()).get('/healthz').expect(200);
+
+    expect(telemetry.captured).toEqual([]);
+  });
+
+  it('does not report /version (public release identity, cost amplifier)', async () => {
+    await request(app.getHttpServer()).get('/version').expect(200);
 
     expect(telemetry.captured).toEqual([]);
   });
